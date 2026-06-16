@@ -6,6 +6,12 @@ echo  Envoi du projet vers GitHub
 echo ============================================================
 echo.
 
+rem --- nettoyer un eventuel verrou git laisse par un essai precedent ---
+if exist ".git\config.lock" (
+  echo Suppression d'un verrou git residuel...
+  del /f /q ".git\config.lock"
+)
+
 git --version >nul 2>&1
 if errorlevel 1 (
   echo [ERREUR] Git introuvable. Installe Git puis relance ce script.
@@ -24,7 +30,7 @@ if not exist ".git" (
   git branch -M main
 )
 
-echo Ajout des fichiers (les secrets et *.db sont exclus par .gitignore)...
+echo Ajout des fichiers (secrets et *.db exclus par .gitignore)...
 git add .
 git commit -m "Plateforme confirmation - phases 1 a 3 + bundle prod PythonAnywhere"
 
@@ -34,17 +40,11 @@ git ls-files | findstr /i "prod_settings.py .db"
 echo === (si rien n'apparait ci-dessus, aucun secret n'est suivi : OK) ===
 echo.
 
-rem --- remote ---
-git remote get-url origin >nul 2>&1 && goto push
-echo Cree d'abord un depot VIDE sur github.com (sans README ni .gitignore),
-echo puis copie son URL (ex: https://github.com/TONPSEUDO/plateforme-confirmation.git)
-echo.
-set /p ORIGIN="Colle l'URL du depot puis appuie sur Entree : "
-git remote add origin "%ORIGIN%"
+rem --- remote fixe vers ton depot ---
+git remote remove origin >nul 2>&1
+git remote add origin https://github.com/atrcrege-a11y/Plateforme-confirmation.git
 
-:push
-echo.
-echo Envoi vers GitHub (une fenetre de connexion GitHub peut s'ouvrir : connecte-toi)...
+echo Envoi vers GitHub (une fenetre de connexion GitHub va s'ouvrir : connecte-toi)...
 git push -u origin main
 
 echo.
