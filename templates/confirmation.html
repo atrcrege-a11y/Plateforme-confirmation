@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Confirmation de participation — LREGE</title>
+<style>
+  :root{--bg:#f4f4f2;--card:#fff;--bord:#e0ddd5;--bord2:#cfcabf;--txt:#1f2328;--mut:#5f6b76;--info:#185fa5;--infobg:#e6f1fb;--ok:#2f7d4f;--okbg:#e9f5ee;--warn:#9a6a12;--warnbg:#fbf0d9;--err:#b3261e}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--txt);background:var(--bg);margin:0;padding:24px 14px;line-height:1.5}
+  .wrap{max-width:780px;margin:0 auto}
+  .card{background:var(--card);border:1px solid var(--bord);border-radius:12px;padding:16px 20px;margin-bottom:16px}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  .mut{color:var(--mut);font-size:13px}
+  .badge{font-size:12px;padding:3px 10px;border-radius:8px;display:inline-block}
+  .teamttl{font-size:15px;font-weight:600;margin:14px 0 2px}
+  .trow{display:grid;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--bord)}
+  .trow.mine{background:var(--infobg);border-radius:8px;padding-left:8px;padding-right:8px}
+  .trow.locked{opacity:.6}
+  select,input{font:inherit;padding:6px 8px;border:1px solid var(--bord2);border-radius:8px;background:#fff}
+  button{font:inherit;padding:10px 16px;border:1px solid var(--bord2);border-radius:8px;background:#fff;cursor:pointer}
+  button.primary{background:var(--info);color:#fff;border-color:var(--info);width:100%;font-weight:600}
+  button:hover{filter:brightness(.97)}
+  fieldset.arbitre-box{border:1px solid var(--bord2);border-radius:8px;padding:10px 12px;margin:8px 0}
+  fieldset.arbitre-box legend{font-size:13px;font-weight:600;padding:0 6px}
+  fieldset.arbitre-box input,fieldset.arbitre-box select{margin:4px 6px 4px 0}
+  .err{color:var(--err);font-size:13px;margin:10px 0}
+  .arb-vide{color:var(--mut);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="loading" class="card mut">Chargement…</div>
+  <div id="app" style="display:none">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div>
+          <h1 id="compNom"></h1>
+          <p class="mut" id="compMeta"></p>
+          <p class="mut" id="clubNom"></p>
+        </div>
+        <span class="badge" id="statut"></span>
+      </div>
+      <p class="mut" id="cloison" style="margin:10px 0 0"></p>
+    </div>
+
+    <div class="card"><div id="qualifies"></div></div>
+
+    <div class="card" id="arbitrageCard">
+      <p style="font-weight:600;margin:0 0 6px">Arbitres <span class="mut" id="arbReq"></span></p>
+      <div id="arbitres"></div>
+    </div>
+
+    <div id="err" class="err" style="display:none"></div>
+    <button class="primary" onclick="confirmer()">Confirmer mes tireurs</button>
+  </div>
+
+  <div id="done" style="display:none"></div>
+</div>
+
+<script src="/static/arbitres.js"></script>
+<script>
+  const TOKEN = "{{ token }}";
+  let DATA = null, CHAMPS = [];
+
+  function cols(n){ return "56px 1fr 96px" + " 120px".repeat(n); }
+  function opt(v, sel){ return `<option value="${v}" ${v===sel?"selected":""}>${v}</option>`; }
+
+  async function charger(){
+    const r = await fetch(`/api/c/${TOKEN}`);
+    if(r.status === 404){ document.getElementById("loading").textContent = "Lien invalide ou expiré."; return; }
+    DATA = await r.json();
+    CHAMPS = DATA.competition.champs || [];
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    rendu();
+  }
+
+  function rendu(){
+    const c = DATA.competition;
+    document.getElementById("compNom").textContent = c.nom;
+    document.getElementById("compMeta").textContent = `${c.date || ""} · ${c.lieu || ""}` + (c.date_limite ? ` — à confirmer avant le ${c.date_limite}` : "");
+    document.getElementById("clubNom").textContent = "Club : " + DATA.club.nom;
+    const st = document.getElementById("statut");
+    const confirmee = DATA.statut === "confirmee";
+    st.textContent = confirmee ? "Confirmée" : "En attente";
+    st.style.background = confirmee ? "var(--okbg)" : "var(--warnbg)";
+    st.style.color = confirmee ? "var(--ok)" : "var(--warn)";
+    document.getElementById("cloison").innerHTML = "Vous ne pouvez confirmer que <b>vos tireurs</b> (surlignés) ; les autres sont en lecture seule.";
+
+    const groupKey = c.format === "equipe" ? "equipe" : "section";
+    const groups = {};
+    DATA.qualifies.forEach(q => { const k = q[groupKey] || "Tireurs"; (groups[k] = groups[k] || []).push(q); });
+
+    const champHead = CHAMPS.map(ch => `<span>${ch.label}</span>`).join("");
+    const box = document.getElementById("qualifies"); box.innerHTML = "";
+    Object.keys(groups).forEach(g => {
+      const h = document.createElement("div");
+      h.innerHTML = `<p class="teamttl">${g}</p><div class="trow" style="grid-template-columns:${cols(CHAMPS.length)};border-top:none;color:var(--mut);font-size:12px"><span>Rang</span><span>Tireur · club</span><span>Présent</span>${champHead}</div>`;
+      box.appendChild(h);
+      groups[g].forEach(q => {
+        const saisie = q.saisie || {};
+        const present = saisie.present != null ? !!saisie.present : q.mine;
+        const row = document.createElement("div");
+        row.className = "trow" + (q.mine ? " mine" : " locked");
+        row.style.gridTemplateColumns = cols(CHAMPS.length);
+        if(q.mine){
+          let html =
+            `<span class="mut">${q.rang ?? ""}</span>`+
+            `<div>${q.prenom} ${q.nom}<br><span class="mut">${q.section || ""}</span></div>`+
+            `<select data-id="${q.id}" class="qp" onchange="syncRow(${q.id})"><option value="oui" ${present?"selected":""}>Oui</option><option value="non" ${present?"":"selected"}>Non</option></select>`;
+          CHAMPS.forEach(ch => {
+            const cur = saisie[ch.key] || "";
+            const opts = '<option value="">—</option>' + ch.options.map(o => opt(o, cur)).join("");
+            html += `<select data-id="${q.id}" data-champ="${ch.key}" class="qc" ${present?"":"disabled"}>${opts}</select>`;
+          });
+          row.innerHTML = html;
+        } else {
+          row.innerHTML =
+            `<span class="mut">${q.rang ?? ""}</span>`+
+            `<div>${q.prenom} ${q.nom}<br><span class="mut">autre club</span></div>`+
+            `<span class="mut">verrouillé</span>` + CHAMPS.map(() => '<span class="mut">—</span>').join("");
+        }
+        box.appendChild(row);
+      });
+    });
+
+    const arb = DATA.arbitrage;
+    if(arb.arbitres_requis && arb.arbitres_requis_nombre > 0){
+      document.getElementById("arbitrageCard").style.display = "block";
+      document.getElementById("arbReq").textContent = `(${arb.arbitres_requis_nombre} requis · ${arb.type_arbitrage})`;
+      Arbitres.render(document.getElementById("arbitres"), arb.arbitres_requis_nombre, DATA.arbitres);
+    } else {
+      document.getElementById("arbitrageCard").style.display = "none";
+    }
+  }
+
+  function syncRow(id){
+    const present = document.querySelector(`.qp[data-id="${id}"]`).value === "oui";
+    document.querySelectorAll(`.qc[data-id="${id}"]`).forEach(s => s.disabled = !present);
+  }
+
+  async function confirmer(){
+    const err = document.getElementById("err"); err.style.display = "none";
+    const parts = [];
+    document.querySelectorAll(".qp").forEach(sel => {
+      const id = +sel.dataset.id;
+      const present = sel.value === "oui";
+      const p = { qualifie_id: id, present };
+      document.querySelectorAll(`.qc[data-id="${id}"]`).forEach(s => { p[s.dataset.champ] = present ? s.value : null; });
+      parts.push(p);
+    });
+    const requis = CHAMPS.filter(ch => ch.required).map(ch => ch.key);
+    if(parts.some(p => p.present && requis.some(k => !p[k]))){
+      err.style.display="block"; err.textContent = "Complète les champs requis (" + CHAMPS.map(c=>c.label).join(", ") + ") pour chaque tireur présent."; return;
+    }
+    const arb = DATA.arbitrage;
+    let arbitres = [];
+    if(arb.arbitres_requis && arb.arbitres_requis_nombre > 0){
+      arbitres = Arbitres.collect(document.getElementById("arbitres"));
+      const v = Arbitres.valider(arbitres, arb.arbitres_requis_nombre);
+      if(!v.ok){ err.style.display="block"; err.textContent = v.errors.join("  "); return; }
+    }
+    const r = await fetch(`/api/confirm/${TOKEN}`, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ participations: parts, arbitres })
+    });
+    if(r.status === 403){ err.style.display="block"; err.textContent = "Action refusée : un tireur hors de votre périmètre."; return; }
+    if(!r.ok){ err.style.display="block"; err.textContent = "Erreur lors de l'enregistrement."; return; }
+    const res = await r.json();
+    document.getElementById("app").style.display = "none";
+    const done = document.getElementById("done"); done.style.display = "block";
+    done.innerHTML = `<div class="card"><h1>Participations confirmées</h1><p class="mut">${res.tireurs_enregistres} tireur(s) · ${res.arbitres_enregistres} arbitre(s) enregistrés.</p><button onclick="location.reload()">Modifier</button></div>`;
+  }
+
+  charger();
+</script>
+</body>
+</html>
