@@ -59,3 +59,27 @@ def export_xlsx(token, comp_id):
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{fichier}"'},
     )
+
+
+@bp.route("/cron/rappels/<token>", methods=["GET"])
+def cron_rappels(token):
+    """Déclencheur HTTP des rappels (appelé par un cron externe, ex. cron-job.org).
+
+    Protégé par le token admin (404 sinon). Permet d'automatiser les relances sur
+    un hébergement sans tâches planifiées (PythonAnywhere gratuit)."""
+    _require_admin(token)
+    from rappels import envoyer_rappels
+    conn = get_connection()
+    try:
+        res = envoyer_rappels(conn)
+    finally:
+        conn.close()
+    return jsonify({
+        "envois": len(res),
+        "details": [
+            {"club": r["club_nom"], "competition": r["competition_nom"],
+             "jours_restants": r["jours_restants"], "sent": r["sent"],
+             "dry_run": r["dry_run"], "error": r["error"]}
+            for r in res
+        ],
+    })
