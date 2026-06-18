@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connexion — Secrétariat LREGE</title>
+<style>
+  :root{--bg:#f4f4f2;--card:#fff;--bord:#e0ddd5;--bord2:#cfcabf;--txt:#1f2328;--mut:#5f6b76;--info:#185fa5;--err:#b3261e;--errbg:#f6e4e3}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--txt);background:var(--bg);margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .card{background:var(--card);border:1px solid var(--bord);border-radius:14px;padding:28px 26px;width:100%;max-width:360px}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  p.mut{color:var(--mut);font-size:13px;margin:0 0 18px}
+  label{display:block;font-size:13px;color:var(--mut);margin:12px 0 4px}
+  input{width:100%;font:inherit;padding:9px 11px;border:1px solid var(--bord2);border-radius:8px}
+  button{margin-top:18px;width:100%;font:inherit;font-weight:600;padding:10px;border:none;border-radius:8px;background:var(--info);color:#fff;cursor:pointer}
+  button:hover{background:#14507f}
+  .err{background:var(--errbg);color:var(--err);font-size:13px;padding:8px 11px;border-radius:8px;margin-bottom:14px}
+</style>
+</head>
+<body>
+  <form class="card" method="post" action="/login{{ ('?next=' + request.args.get('next')) if request.args.get('next') else '' }}">
+    <h1>Secrétariat LREGE</h1>
+    <p class="mut">Suivi des confirmations — Ligue Grand Est d'escrime</p>
+    {% if erreur %}<div class="err">{{ erreur }}</div>{% endif %}
+    <label for="email">E-mail</label>
+    <input id="email" name="email" type="email" autocomplete="username" required autofocus>
+    <label for="mdp">Mot de passe</label>
+    <input id="mdp" name="mdp" type="password" autocomplete="current-password" required>
+    <button type="submit">Se connecter</button>
+  </form>
+</body>
+</html>

@@ -1,23 +1,18 @@
-"""
-migrate.py — Création / migration de la base SQLite.
-
-Applique schema.sql (idempotent : CREATE TABLE IF NOT EXISTS) puis pose
-PRAGMA user_version. Les migrations futures s'ajoutent dans MIGRATIONS,
-indexées par numéro de version cible.
-
-Usage :
-    python migrate.py            # migre la base par défaut (plateforme.db)
-    PLATEFORME_DB=/chemin/x.db python migrate.py
-"""
+"""migrate.py — Création / migration de la base SQLite."""
 import os
-
 from db import get_connection, DB_PATH, BASE_DIR
 
-SCHEMA_VERSION = 1  # incrémenter à chaque nouvelle migration
+SCHEMA_VERSION = 2  # incrémenter à chaque nouvelle migration
 
-# Migrations incrémentales futures : {version_cible: [requêtes SQL]}
 MIGRATIONS = {
-    # 2: ["ALTER TABLE ... "],
+    2: [
+        "CREATE TABLE IF NOT EXISTS utilisateur ("
+        " id INTEGER PRIMARY KEY,"
+        " email TEXT NOT NULL UNIQUE,"
+        " nom TEXT NOT NULL,"
+        " mdp_hash TEXT NOT NULL,"
+        " role TEXT NOT NULL CHECK(role IN ('admin','secretariat')))",
+    ],
 }
 
 
@@ -31,18 +26,15 @@ def migrate(db_path=None):
     conn = get_connection(db_path)
     try:
         current = conn.execute("PRAGMA user_version").fetchone()[0]
-        # Base vierge ou v0 : appliquer le schéma complet
         if current == 0:
             _apply_base_schema(conn)
-        # Migrations incrémentales
         for version in sorted(MIGRATIONS):
             if version > current:
                 for stmt in MIGRATIONS[version]:
                     conn.execute(stmt)
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
-        final = conn.execute("PRAGMA user_version").fetchone()[0]
-        return final
+        return conn.execute("PRAGMA user_version").fetchone()[0]
     finally:
         conn.close()
 

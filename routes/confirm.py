@@ -1,12 +1,4 @@
-"""
-routes/confirm.py — Lecture + enregistrement des confirmations (2.2).
-
-Accès par lien magique : /c/<token> identifie le club + la compétition via
-confirmation.token. CLOISONNEMENT (règle métier) : un club ne peut écrire que
-sur SES propres tireurs (qualifie.club_id == club du token) ; toute tentative
-sur un tireur d'un autre club est rejetée (403), côté serveur, sans se fier au
-front.
-"""
+"""routes/confirm.py — Lecture + enregistrement des confirmations (2.2)."""
 import datetime
 
 from flask import Blueprint, jsonify, request, abort, render_template
@@ -29,30 +21,23 @@ def _confirmation(conn, token):
 
 @bp.route("/c/<token>", methods=["GET"])
 def page_confirmation(token):
-    """Page web de confirmation (le JS appelle /api/c/<token>)."""
     return render_template("confirmation.html", token=token)
 
 
 @bp.route("/api/c/<token>", methods=["GET"])
 def lire_confirmation(token):
-    """Renvoie le périmètre du club : compétition, qualifiés (mine/lecture seule),
-    bloc arbitrage, et la saisie déjà enregistrée."""
     conn = get_connection()
     try:
         conf = _confirmation(conn, token)
         if conf is None:
             abort(404, description="Lien invalide ou expiré")
-
         comp = _row(conn, "SELECT * FROM competition WHERE id = ?", (conf["competition_id"],))
         club = _row(conn, "SELECT * FROM club WHERE id = ?", (conf["club_id"],))
-
         qualifies = conn.execute(
             "SELECT id, club_id, nom, prenom, section, equipe, rang "
             "FROM qualifie WHERE competition_id = ? ORDER BY equipe, rang",
             (conf["competition_id"],),
         ).fetchall()
-
-        # saisie déjà enregistrée (préremplissage)
         partic = {
             r["qualifie_id"]: dict(r)
             for r in conn.execute(
@@ -65,7 +50,6 @@ def lire_confirmation(token):
             "SELECT nom, prenom, club, niveau FROM arbitre WHERE confirmation_id = ?",
             (conf["id"],),
         ).fetchall()]
-
         mine_count = sum(1 for q in qualifies if q["club_id"] == conf["club_id"])
         return jsonify({
             "competition": {
@@ -97,11 +81,9 @@ def lire_confirmation(token):
 
 @bp.route("/api/confirm/<token>", methods=["POST"])
 def enregistrer_confirmation(token):
-    """Enregistre la confirmation du club. Rejette toute écriture hors périmètre."""
     data = request.get_json(silent=True) or {}
     participations = data.get("participations", [])
     arbitres = data.get("arbitres", [])
-
     conn = get_connection()
     try:
         conf = _confirmation(conn, token)
@@ -111,7 +93,6 @@ def enregistrer_confirmation(token):
         comp = _row(conn, "SELECT categorie, nom FROM competition WHERE id = ?", (comp_id,))
         club = _row(conn, "SELECT nom FROM club WHERE id = ?", (club_id,))
 
-        # CLOISONNEMENT : chaque qualifie_id doit appartenir au club du token
         ids = [p.get("qualifie_id") for p in participations]
         if ids:
             placeholders = ",".join("?" * len(ids))
@@ -126,11 +107,9 @@ def enregistrer_confirmation(token):
             if hors_perimetre:
                 abort(403, description=f"Tireur(s) hors de votre périmètre : {hors_perimetre}")
 
-        # Validation des niveaux d'arbitre
         for a in arbitres:
             if a.get("niveau") not in NIVEAUX_ARBITRE:
                 abort(400, description=f"Niveau d'arbitre invalide : {a.get('niveau')!r}")
-        # Validation des champs requis (veste M15 / catégorie d'âge Vétérans…) pour les présents
         requis = [c["key"] for c in champs_tireur(comp["categorie"]) if c.get("required")]
         for p in participations:
             if p.get("present"):
@@ -138,7 +117,6 @@ def enregistrer_confirmation(token):
                     if not (p.get(key) or "").strip():
                         abort(400, description=f"Champ '{key}' manquant pour un tireur présent")
 
-        # Réécriture idempotente de la saisie du club
         conn.execute("DELETE FROM participation_tireur WHERE confirmation_id = ?", (conf["id"],))
         conn.execute("DELETE FROM arbitre WHERE confirmation_id = ?", (conf["id"],))
         for p in participations:
@@ -164,8 +142,6 @@ def enregistrer_confirmation(token):
         )
         conn.commit()
 
-        # Notification secrétariat — best-effort (n'interrompt jamais la confirmation)
-        # Détail nominatif : on relit la saisie + les noms des qualifiés.
         tireurs_detail = [
             {
                 "nom": r["nom"], "prenom": r["prenom"], "present": bool(r["present"]),

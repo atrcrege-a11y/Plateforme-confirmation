@@ -1,26 +1,11 @@
-"""
-dashboard.py — Vue secrétariat globale (3.1).
-
-NON cloisonné : c'est la vue d'ensemble (accès réservé à l'admin, cf.
-`admin_token()`). Contrairement aux liens club (/c/<token>), le dashboard voit
-TOUTES les compétitions et TOUS les clubs.
-
-Fonctions pures (testables sans Flask) :
-  - agreger(conn)            -> agrégat par compétition + détail par club
-  - participations_export(conn, competition_id) -> lignes tireurs + arbitres
-  - construire_xlsx(...)     -> classeur openpyxl (feuilles Tireurs / Arbitres)
-
-Auth : un token admin unique (accès permanent, une seule personne). Surchargé
-par la variable d'env ADMIN_TOKEN ; défaut de dev pour les tests/seed.
-"""
+"""dashboard.py — Agrégat secrétariat + export Excel (logique pure, testable)."""
 import io
 import os
 
-DEFAULT_ADMIN_TOKEN = "admin-local"  # dev/local uniquement ; surcharger en prod
+DEFAULT_ADMIN_TOKEN = "admin-local"
 
 
 def admin_token():
-    """Token admin courant (env ADMIN_TOKEN > défaut dev)."""
     return os.environ.get("ADMIN_TOKEN", DEFAULT_ADMIN_TOKEN)
 
 
@@ -28,19 +13,11 @@ def is_admin(token):
     return token == admin_token()
 
 
-# ── Agrégat dashboard ────────────────────────────────────────────────
 def agreger(conn):
-    """Agrégat par compétition + détail par club.
-
-    Pour chaque compétition : nb clubs total / confirmés / en attente,
-    nb tireurs présents confirmés, nb arbitres. Pour chaque club : statut,
-    date de confirmation, nb présents, nb arbitres, token (accès saisie).
-    """
     competitions = conn.execute(
         "SELECT id, nom, categorie, format, date, lieu, date_limite "
         "FROM competition ORDER BY date_limite, nom"
     ).fetchall()
-
     out = []
     for comp in competitions:
         confs = conn.execute(
@@ -50,7 +27,6 @@ def agreger(conn):
             "WHERE cf.competition_id = ? ORDER BY cl.nom",
             (comp["id"],),
         ).fetchall()
-
         clubs = []
         n_confirmes = n_presents = n_arbitres = 0
         for cf in confs:
@@ -63,8 +39,6 @@ def agreger(conn):
                 "SELECT COUNT(*) AS n FROM arbitre WHERE confirmation_id = ?",
                 (cf["id"],),
             ).fetchone()["n"]
-            # Détail nominatif des tireurs saisis par ce club (pour le dépliant
-            # du dashboard). Vide tant que le club n'a rien confirmé.
             tireurs = [
                 {
                     "nom": t["nom"], "prenom": t["prenom"], "equipe": t["equipe"],
@@ -81,50 +55,29 @@ def agreger(conn):
                     (cf["id"],),
                 ).fetchall()
             ]
-            confirmee = cf["statut"] == "confirmee"
-            if confirmee:
+            if cf["statut"] == "confirmee":
                 n_confirmes += 1
             n_presents += presents
             n_arbitres += arbitres
             clubs.append({
-                "club": cf["club_nom"],
-                "email": cf["club_email"],
-                "statut": cf["statut"],
-                "date_confirmation": cf["date_confirmation"],
+                "club": cf["club_nom"], "email": cf["club_email"],
+                "statut": cf["statut"], "date_confirmation": cf["date_confirmation"],
                 "confirme_par_email": cf["confirme_par_email"],
-                "presents": presents,
-                "arbitres": arbitres,
-                "tireurs": tireurs,
-                "token": cf["token"],
+                "presents": presents, "arbitres": arbitres,
+                "tireurs": tireurs, "token": cf["token"],
             })
-
         total = len(confs)
         out.append({
-            "id": comp["id"],
-            "nom": comp["nom"],
-            "categorie": comp["categorie"],
-            "format": comp["format"],
-            "date": comp["date"],
-            "lieu": comp["lieu"],
-            "date_limite": comp["date_limite"],
-            "clubs_total": total,
-            "clubs_confirmes": n_confirmes,
-            "clubs_en_attente": total - n_confirmes,
-            "tireurs_presents": n_presents,
-            "arbitres": n_arbitres,
-            "clubs": clubs,
+            "id": comp["id"], "nom": comp["nom"], "categorie": comp["categorie"],
+            "format": comp["format"], "date": comp["date"], "lieu": comp["lieu"],
+            "date_limite": comp["date_limite"], "clubs_total": total,
+            "clubs_confirmes": n_confirmes, "clubs_en_attente": total - n_confirmes,
+            "tireurs_presents": n_presents, "arbitres": n_arbitres, "clubs": clubs,
         })
     return out
 
 
-# ── Export Excel ─────────────────────────────────────────────────────
 def participations_export(conn, competition_id):
-    """Lignes d'export pour une compétition : (tireurs, arbitres).
-
-    tireurs : club, équipe, section, nom, prénom, présent, veste, catégorie d'âge.
-    arbitres : club (confirmant), nom, prénom, club arbitre, niveau.
-    Seules les confirmations CONFIRMÉES sont exportées.
-    """
     tireurs = conn.execute(
         "SELECT cl.nom AS club, q.equipe, q.section, q.nom, q.prenom, "
         "       pt.present, pt.taille_veste, pt.categorie_age "
@@ -136,7 +89,6 @@ def participations_export(conn, competition_id):
         "ORDER BY cl.nom, q.equipe, q.rang",
         (competition_id,),
     ).fetchall()
-
     arbitres = conn.execute(
         "SELECT cl.nom AS club_confirmant, a.nom, a.prenom, a.club, a.niveau "
         "FROM arbitre a "
@@ -150,14 +102,10 @@ def participations_export(conn, competition_id):
 
 
 def construire_xlsx(comp_nom, tireurs, arbitres):
-    """Construit un classeur openpyxl (feuilles Tireurs + Arbitres) et le
-    retourne en bytes (.xlsx)."""
     from openpyxl import Workbook
     from openpyxl.styles import Font
-
     wb = Workbook()
     gras = Font(bold=True)
-
     ws = wb.active
     ws.title = "Tireurs"
     entetes_t = ["Club", "Équipe", "Section", "Nom", "Prénom",
@@ -171,7 +119,6 @@ def construire_xlsx(comp_nom, tireurs, arbitres):
             "Oui" if t["present"] else "Non",
             t["taille_veste"] or "", t["categorie_age"] or "",
         ])
-
     wa = wb.create_sheet("Arbitres")
     entetes_a = ["Club confirmant", "Nom", "Prénom", "Club arbitre", "Niveau"]
     wa.append(entetes_a)
@@ -179,12 +126,9 @@ def construire_xlsx(comp_nom, tireurs, arbitres):
         c.font = gras
     for a in arbitres:
         wa.append([a["club_confirmant"], a["nom"], a["prenom"], a["club"], a["niveau"]])
-
-    # largeurs lisibles
     for sheet, entetes in ((ws, entetes_t), (wa, entetes_a)):
         for i, _ in enumerate(entetes, start=1):
             sheet.column_dimensions[chr(64 + i)].width = 20
-
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()

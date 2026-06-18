@@ -6,7 +6,7 @@ NE PAS mettre de secrets ici. Copier ce fichier en `prod_settings.py`
 importé par le fichier WSGI et par `cron_rappels.py` AVANT le chargement de
 l'application : il sert uniquement à poser les variables d'environnement.
 
-Générer un ADMIN_TOKEN solide :
+Générer un secret solide (ADMIN_TOKEN ou SECRET_KEY) :
     python -c "import secrets; print(secrets.token_urlsafe(24))"
 """
 import os
@@ -16,7 +16,14 @@ import os
 os.environ.setdefault("PLATEFORME_DB",
                       "/home/CHANGEME/plateforme-confirmation/plateforme.db")
 
-# Accès dashboard (toi seul). Token secret, PAS "admin-local".
+# Clé de signature des sessions de connexion (OBLIGATOIRE en prod).
+# Sans elle, les cookies de session ne sont pas sûrs. Générer comme ci-dessus.
+os.environ.setdefault("SECRET_KEY", "CHANGEME-cle-session-secrete")
+
+# Cookie envoyé uniquement en HTTPS (1 en prod PythonAnywhere, 0 en local HTTP).
+os.environ.setdefault("COOKIE_SECURE", "1")
+
+# Token du déclencheur cron /cron/rappels/<token> (appel machine cron-job.org).
 os.environ.setdefault("ADMIN_TOKEN", "CHANGEME-token-secret")
 
 # URL publique (réécrit les liens dans les emails de rappel).

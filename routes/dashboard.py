@@ -1,36 +1,29 @@
-"""
-routes/dashboard.py — Vue secrétariat (3.1).
+"""routes/dashboard.py — Vue secrétariat (3.1), protégée par session.
 
-Accès réservé à l'admin via token permanent (dashboard.admin_token()). Le
-dashboard n'est PAS cloisonné : il agrège toutes les compétitions / clubs.
-
-Endpoints :
-  GET /dashboard/<token>                       -> page HTML
-  GET /api/dashboard/<token>                   -> agrégat JSON
-  GET /api/dashboard/<token>/export/<comp_id>  -> classeur .xlsx (confirmées)
+Accès humain : connexion (auth.login_requis / api_auth). Rôles admin et
+secrétariat voient le dashboard et l'export. Le déclencheur cron garde son
+token (appel machine, pas d'humain).
 """
 from flask import Blueprint, jsonify, abort, render_template, Response
 
 from db import get_connection
 import dashboard as dash
+import auth
 
 bp = Blueprint("dashboard", __name__)
 
-
-def _require_admin(token):
-    if not dash.is_admin(token):
-        abort(404)  # 404 plutôt que 403 : ne pas révéler l'existence du dashboard
+VUE = ("admin", "secretariat")  # rôles autorisés à consulter le dashboard
 
 
-@bp.route("/dashboard/<token>", methods=["GET"])
-def page_dashboard(token):
-    _require_admin(token)
-    return render_template("dashboard.html", token=token)
+@bp.route("/dashboard", methods=["GET"])
+@auth.login_requis
+def page_dashboard():
+    return render_template("dashboard.html", user=auth.utilisateur_courant())
 
 
-@bp.route("/api/dashboard/<token>", methods=["GET"])
-def api_dashboard(token):
-    _require_admin(token)
+@bp.route("/api/dashboard", methods=["GET"])
+@auth.api_auth(*VUE)
+def api_dashboard():
     conn = get_connection()
     try:
         return jsonify({"competitions": dash.agreger(conn)})
@@ -38,9 +31,9 @@ def api_dashboard(token):
         conn.close()
 
 
-@bp.route("/api/dashboard/<token>/export/<int:comp_id>", methods=["GET"])
-def export_xlsx(token, comp_id):
-    _require_admin(token)
+@bp.route("/api/dashboard/export/<int:comp_id>", methods=["GET"])
+@auth.api_auth(*VUE)
+def export_xlsx(comp_id):
     conn = get_connection()
     try:
         comp = conn.execute(
@@ -52,7 +45,6 @@ def export_xlsx(token, comp_id):
         contenu = dash.construire_xlsx(comp["nom"], tireurs, arbitres)
     finally:
         conn.close()
-
     fichier = f"participations_comp{comp_id}.xlsx"
     return Response(
         contenu,
@@ -63,11 +55,9 @@ def export_xlsx(token, comp_id):
 
 @bp.route("/cron/rappels/<token>", methods=["GET"])
 def cron_rappels(token):
-    """Déclencheur HTTP des rappels (appelé par un cron externe, ex. cron-job.org).
-
-    Protégé par le token admin (404 sinon). Permet d'automatiser les relances sur
-    un hébergement sans tâches planifiées (PythonAnywhere gratuit)."""
-    _require_admin(token)
+    """Déclencheur HTTP des rappels (cron externe). Protégé par le token admin."""
+    if not dash.is_admin(token):
+        abort(404)
     from rappels import envoyer_rappels
     conn = get_connection()
     try:

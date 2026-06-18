@@ -86,3 +86,12 @@ CREATE INDEX IF NOT EXISTS ix_confirmation_comp ON confirmation(competition_id);
 CREATE INDEX IF NOT EXISTS ix_confirmation_tok  ON confirmation(token);
 CREATE INDEX IF NOT EXISTS ix_partic_conf       ON participation_tireur(confirmation_id);
 CREATE INDEX IF NOT EXISTS ix_arbitre_conf      ON arbitre(confirmation_id);
+
+-- Comptes d'accès au dashboard (admin / secrétariat) ---------------
+CREATE TABLE IF NOT EXISTS utilisateur (
+    id        INTEGER PRIMARY KEY,
+    email     TEXT NOT NULL UNIQUE,
+    nom       TEXT NOT NULL,
+    mdp_hash  TEXT NOT NULL,
+    role      TEXT NOT NULL CHECK(role IN ('admin','secretariat'))
+);

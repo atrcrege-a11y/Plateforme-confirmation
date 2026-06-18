@@ -36,27 +36,32 @@
   table.sub{margin:6px 0 2px;font-size:13px}
   table.sub th,table.sub td{border-top:1px solid var(--bord);padding:4px 8px}
   .badge.ko{background:#f6e4e3;color:var(--err)}
+  .userbar{font-size:13px;color:var(--mut);display:flex;align-items:center;gap:12px}
+  .userbar a{color:var(--info);text-decoration:none}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="card head">
     <div><h1>Dashboard secrétariat</h1><p class="mut">Suivi des confirmations — Ligue Grand Est d'escrime</p></div>
-    <button onclick="charger()" style="font:inherit;padding:8px 14px;border:1px solid var(--bord2);border-radius:8px;background:#fff;cursor:pointer">Actualiser</button>
+    <div class="userbar">
+      <span>{{ user.nom }}{% if user.role == 'admin' %} (admin){% endif %}</span>
+      <a href="/logout">Déconnexion</a>
+      <button onclick="charger()" style="font:inherit;padding:8px 14px;border:1px solid var(--bord2);border-radius:8px;background:#fff;cursor:pointer">Actualiser</button>
+    </div>
   </div>
   <div id="loading" class="card mut">Chargement…</div>
   <div id="list"></div>
 </div>
 
 <script>
-  const TOKEN = "{{ token }}";
-
   function esc(s){ return (s==null?"":String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
   async function charger(){
     const box = document.getElementById("list");
-    const r = await fetch(`/api/dashboard/${TOKEN}`);
-    if(!r.ok){ document.getElementById("loading").textContent = "Accès refusé ou lien invalide."; return; }
+    const r = await fetch("/api/dashboard");
+    if(r.status === 401){ window.location = "/login"; return; }
+    if(!r.ok){ document.getElementById("loading").textContent = "Accès refusé."; return; }
     document.getElementById("loading").style.display = "none";
     const data = await r.json();
     box.innerHTML = "";
@@ -105,7 +110,7 @@
         <span><b>${c.tireurs_presents}</b> tireurs présents</span>
         <span><b>${c.arbitres}</b> arbitres</span>
         <span><b>${c.clubs_en_attente}</b> en attente</span>
-        <span style="margin-left:auto"><a class="btn" href="/api/dashboard/${TOKEN}/export/${c.id}">Export Excel</a></span>
+        <span style="margin-left:auto"><a class="btn" href="/api/dashboard/export/${c.id}">Export Excel</a></span>
       </div>
       <table>
         <thead><tr><th>Club</th><th>Statut</th><th>Confirmé le</th><th>Présents</th><th>Arbitres</th><th>Par</th></tr></thead>
