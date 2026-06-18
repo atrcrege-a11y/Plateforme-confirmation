@@ -58,6 +58,26 @@ def test_agregat_non_cloisonne_et_progression(client):
     assert comp1["tireurs_presents"] == 1
 
 
+def test_detail_tireurs_par_club(client):
+    # Châlons confirme 1 présent (veste M) + 1 absent
+    g = client.get("/api/c/tok-chalons").get_json()
+    mine = [q["id"] for q in g["qualifies"] if q["mine"]]
+    client.post("/api/confirm/tok-chalons", json={
+        "participations": [{"qualifie_id": mine[0], "present": True, "taille_veste": "M"},
+                           {"qualifie_id": mine[1], "present": False}]})
+
+    data = client.get(f"/api/dashboard/{ADMIN}").get_json()
+    comp1 = next(c for c in data["competitions"] if c["id"] == 1)
+    club = next(k for k in comp1["clubs"] if k["statut"] == "confirmee")
+    assert len(club["tireurs"]) == 2
+    present = next(t for t in club["tireurs"] if t["present"])
+    assert present["taille_veste"] == "M" and present["nom"]
+    assert any(not t["present"] for t in club["tireurs"])
+    # club non confirmé : détail vide
+    en_attente = next(k for k in comp1["clubs"] if k["statut"] != "confirmee")
+    assert en_attente["tireurs"] == []
+
+
 def test_export_xlsx(client):
     # confirme Vétérans (1 présent + 1 arbitre) puis exporte la compétition 2
     g = client.get("/api/c/tok-vet-chalons").get_json()

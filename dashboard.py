@@ -63,6 +63,24 @@ def agreger(conn):
                 "SELECT COUNT(*) AS n FROM arbitre WHERE confirmation_id = ?",
                 (cf["id"],),
             ).fetchone()["n"]
+            # Détail nominatif des tireurs saisis par ce club (pour le dépliant
+            # du dashboard). Vide tant que le club n'a rien confirmé.
+            tireurs = [
+                {
+                    "nom": t["nom"], "prenom": t["prenom"], "equipe": t["equipe"],
+                    "present": t["present"], "taille_veste": t["taille_veste"],
+                    "categorie_age": t["categorie_age"],
+                }
+                for t in conn.execute(
+                    "SELECT q.nom, q.prenom, q.equipe, "
+                    "       pt.present, pt.taille_veste, pt.categorie_age "
+                    "FROM participation_tireur pt "
+                    "LEFT JOIN qualifie q ON q.id = pt.qualifie_id "
+                    "WHERE pt.confirmation_id = ? "
+                    "ORDER BY q.equipe, q.rang, q.nom",
+                    (cf["id"],),
+                ).fetchall()
+            ]
             confirmee = cf["statut"] == "confirmee"
             if confirmee:
                 n_confirmes += 1
@@ -76,6 +94,7 @@ def agreger(conn):
                 "confirme_par_email": cf["confirme_par_email"],
                 "presents": presents,
                 "arbitres": arbitres,
+                "tireurs": tireurs,
                 "token": cf["token"],
             })
 

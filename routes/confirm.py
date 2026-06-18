@@ -165,8 +165,26 @@ def enregistrer_confirmation(token):
         conn.commit()
 
         # Notification secrétariat — best-effort (n'interrompt jamais la confirmation)
-        nb_presents = sum(1 for p in participations if p.get("present"))
-        notif = notifier_confirmation(comp["nom"], club["nom"], nb_presents, len(arbitres))
+        # Détail nominatif : on relit la saisie + les noms des qualifiés.
+        tireurs_detail = [
+            {
+                "nom": r["nom"], "prenom": r["prenom"], "present": bool(r["present"]),
+                "taille_veste": r["taille_veste"], "categorie_age": r["categorie_age"],
+            }
+            for r in conn.execute(
+                "SELECT q.nom, q.prenom, pt.present, pt.taille_veste, pt.categorie_age "
+                "FROM participation_tireur pt "
+                "LEFT JOIN qualifie q ON q.id = pt.qualifie_id "
+                "WHERE pt.confirmation_id = ? ORDER BY q.equipe, q.rang, q.nom",
+                (conf["id"],),
+            ).fetchall()
+        ]
+        arbitres_detail = [
+            {"nom": a.get("nom"), "prenom": a.get("prenom"),
+             "club": a.get("club"), "niveau": a.get("niveau")}
+            for a in arbitres
+        ]
+        notif = notifier_confirmation(comp["nom"], club["nom"], tireurs_detail, arbitres_detail)
 
         return jsonify({
             "statut": "confirmee",

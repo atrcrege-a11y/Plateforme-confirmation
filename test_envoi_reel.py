@@ -70,7 +70,12 @@ def main():
 
     # 2) Notification de confirmation (flux secrétariat) → forcée vers la cible
     os.environ["NOTIF_RECIPIENTS"] = cible
-    n = mailer.notifier_confirmation("Compétition de test", "Club de test (Thomas)", 3, 1)
+    n = mailer.notifier_confirmation(
+        "Compétition de test", "Club de test (Thomas)",
+        [{"nom": "Test", "prenom": "Tireur", "present": True, "taille_veste": "M",
+          "categorie_age": None}],
+        [{"nom": "Arb", "prenom": "Itre", "club": "Club de test", "niveau": "national"}],
+    )
     etat = "DRY-RUN" if n["dry_run"] else ("ENVOYÉ ✓" if n["sent"] else f"ERREUR: {n['error']}")
     print(f"[NOTIFICATION] {etat} → {', '.join(n['recipients'])}")
 

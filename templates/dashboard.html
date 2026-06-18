@@ -26,6 +26,16 @@
   a.btn{font-size:13px;text-decoration:none;color:var(--info);border:1px solid var(--info);border-radius:8px;padding:5px 12px;display:inline-block}
   a.btn:hover{background:var(--infobg)}
   .head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  tr.clubrow{cursor:pointer}
+  tr.clubrow:hover td{background:var(--infobg)}
+  .caret{display:inline-block;width:12px;color:var(--mut);transition:transform .15s}
+  tr.clubrow.open .caret{transform:rotate(90deg)}
+  tr.detail{display:none}
+  tr.detail.open{display:table-row}
+  tr.detail>td{background:#faf9f6;padding:0 8px 10px 26px}
+  table.sub{margin:6px 0 2px;font-size:13px}
+  table.sub th,table.sub td{border-top:1px solid var(--bord);padding:4px 8px}
+  .badge.ko{background:#f6e4e3;color:var(--err)}
 </style>
 </head>
 <body>
@@ -60,14 +70,27 @@
     const complet = c.clubs_total > 0 && c.clubs_en_attente === 0;
     const rows = c.clubs.map(k => {
       const conf = k.statut === "confirmee";
-      return `<tr>
-        <td>${esc(k.club)}</td>
+      const tireurs = k.tireurs || [];
+      const sub = tireurs.length
+        ? `<table class="sub">
+             <thead><tr><th>Tireur</th><th>Équipe</th><th>Présence</th><th>Veste</th></tr></thead>
+             <tbody>${tireurs.map(t => `<tr>
+               <td>${esc(t.nom)} ${esc(t.prenom)}</td>
+               <td>${esc(t.equipe||'—')}</td>
+               <td><span class="badge ${t.present?'ok':'ko'}">${t.present?'Présent':'Absent'}</span></td>
+               <td>${esc(t.taille_veste||'—')}</td>
+             </tr>`).join("")}</tbody>
+           </table>`
+        : '<p class="mut" style="margin:6px 0">Aucun tireur saisi.</p>';
+      return `<tr class="clubrow" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+        <td><span class="caret">▸</span> ${esc(k.club)}</td>
         <td><span class="badge ${conf?'ok':'warn'}">${conf?'Confirmé':'En attente'}</span></td>
         <td>${k.date_confirmation ? esc(k.date_confirmation.replace('T',' ')) : '—'}</td>
         <td>${k.presents}</td>
         <td>${k.arbitres}</td>
         <td class="mut">${esc(k.confirme_par_email||'')}</td>
-      </tr>`;
+      </tr>
+      <tr class="detail"><td colspan="6">${sub}</td></tr>`;
     }).join("");
     div.innerHTML = `
       <div class="head">

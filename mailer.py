@@ -27,17 +27,44 @@ def _recipients():
     return [a.strip() for a in raw.split(",") if a.strip()]
 
 
-def construire_message(competition_nom, club_nom, nb_tireurs, nb_arbitres):
-    """Construit (sujet, corps) de la notification."""
+def _ligne_tireur(t):
+    """'Prénom Nom — veste M' / '… — V1-V2' selon les champs renseignés."""
+    base = f"{t.get('prenom', '')} {t.get('nom', '')}".strip()
+    if t.get("taille_veste"):
+        return f"- {base} — veste {t['taille_veste']}"
+    if t.get("categorie_age"):
+        return f"- {base} — {t['categorie_age']}"
+    return f"- {base}"
+
+
+def construire_message(competition_nom, club_nom, tireurs, arbitres):
+    """Construit (sujet, corps) de la notification — détail NOMINATIF.
+
+    tireurs  : liste de dicts {nom, prenom, present, taille_veste, categorie_age}.
+    arbitres : liste de dicts {nom, prenom, club, niveau}.
+    """
+    presents = [t for t in tireurs if t.get("present")]
+    absents = [t for t in tireurs if not t.get("present")]
+
     sujet = f"[Confirmation LREGE] {club_nom} — {competition_nom}"
-    corps = (
-        f"Le club « {club_nom} » a confirmé sa participation.\n\n"
-        f"Compétition : {competition_nom}\n"
-        f"Tireurs confirmés : {nb_tireurs}\n"
-        f"Arbitres saisis : {nb_arbitres}\n\n"
-        f"— Plateforme de confirmation LREGE"
-    )
-    return sujet, corps
+    lignes = [
+        f"Le club « {club_nom} » a confirmé sa participation.",
+        "",
+        f"Compétition : {competition_nom}",
+        "",
+        f"Tireurs présents ({len(presents)}) :",
+    ]
+    lignes += [_ligne_tireur(t) for t in presents] or ["- (aucun)"]
+    if absents:
+        lignes += ["", f"Tireurs absents ({len(absents)}) :"]
+        lignes += [f"- {(a.get('prenom', '') + ' ' + a.get('nom', '')).strip()}"
+                   for a in absents]
+    lignes += ["", f"Arbitres ({len(arbitres)}) :"]
+    lignes += [f"- {(a.get('prenom', '') + ' ' + a.get('nom', '')).strip()}"
+               f" ({a.get('club', '')}, {a.get('niveau', '')})"
+               for a in arbitres] or ["- (aucun)"]
+    lignes += ["", "— Plateforme de confirmation LREGE"]
+    return sujet, "\n".join(lignes)
 
 
 def construire_rappel(club_nom, competition_nom, date_limite, jours_restants, lien):
@@ -89,12 +116,13 @@ def _envoyer(recipients, sujet, corps):
     return resultat
 
 
-def notifier_confirmation(competition_nom, club_nom, nb_tireurs, nb_arbitres):
-    """Notifie le secrétariat. Best-effort : ne lève jamais.
+def notifier_confirmation(competition_nom, club_nom, tireurs, arbitres):
+    """Notifie le secrétariat (détail nominatif). Best-effort : ne lève jamais.
 
+    tireurs/arbitres : listes de dicts (cf. construire_message).
     Retourne un dict : {sent, dry_run, recipients, subject, error}.
     """
-    sujet, corps = construire_message(competition_nom, club_nom, nb_tireurs, nb_arbitres)
+    sujet, corps = construire_message(competition_nom, club_nom, tireurs, arbitres)
     return _envoyer(_recipients(), sujet, corps)
 
 
