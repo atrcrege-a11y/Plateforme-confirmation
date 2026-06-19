@@ -113,4 +113,84 @@
       const nComp = Object.values(tree[cat]).reduce((s,armeObj) =>
         s + Object.values(armeObj).reduce((n,arr) => n + arr.length, 0), 0);
       const dCat = details('grp grp-cat');
-      dCat.appendChild(summary(cat, nComp + ' compétition' + 
+      dCat.appendChild(summary(cat, nComp + ' compétition' + (nComp > 1 ? 's' : '')));
+      Object.keys(tree[cat]).sort((a,b) => armeRank(a) - armeRank(b) || a.localeCompare(b)).forEach(ar => {
+        const dAr = details('grp grp-arme');
+        dAr.appendChild(summary(ar));
+        Object.keys(tree[cat][ar]).sort().forEach(ty => {
+          const dTy = details('grp grp-type');
+          dTy.appendChild(summary(ty));
+          const inner = document.createElement('div');
+          inner.className = 'grp-inner';
+          tree[cat][ar][ty].forEach(c => inner.appendChild(carte(c)));
+          dTy.appendChild(inner);
+          dAr.appendChild(dTy);
+        });
+        dCat.appendChild(dAr);
+      });
+      box.appendChild(dCat);
+    });
+  }
+
+  function carte(c){
+    const div = document.createElement("div");
+    div.className = "card";
+    const pct = c.clubs_total ? Math.round(100 * c.clubs_confirmes / c.clubs_total) : 0;
+    const complet = c.clubs_total > 0 && c.clubs_en_attente === 0;
+    const attendusTotal = c.clubs.reduce((s,k) => s + (k.attendus_total || 0), 0);
+    const rows = c.clubs.map(k => {
+      const conf = k.statut === "confirmee";
+      const roster = k.attendus || [];
+      const sub = roster.length
+        ? `<table class="sub">
+             <thead><tr><th>Tireur</th><th>Équipe / section</th><th>Présence</th><th>Veste</th></tr></thead>
+             <tbody>${roster.map(t => {
+               const pres = !t.saisi
+                 ? '<span class="badge warn">À confirmer</span>'
+                 : (t.present ? '<span class="badge ok">Présent</span>' : '<span class="badge ko">Absent</span>');
+               return `<tr>
+                 <td>${esc(t.nom)} ${esc(t.prenom)}</td>
+                 <td>${esc(t.equipe || t.section || '—')}</td>
+                 <td>${pres}</td>
+                 <td>${esc(t.taille_veste || '—')}</td>
+               </tr>`;
+             }).join("")}</tbody>
+           </table>`
+        : '<p class="mut" style="margin:6px 0">Aucun qualifié importé pour ce club.</p>';
+      return `<tr class="clubrow" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+        <td><span class="caret">▸</span> ${esc(k.club)}</td>
+        <td><span class="badge ${conf?'ok':'warn'}">${conf?'Confirmé':'En attente'}</span></td>
+        <td>${k.presents}/${k.attendus_total||0}</td>
+        <td>${k.arbitres}</td>
+        <td>${k.date_confirmation ? esc(k.date_confirmation.replace('T',' ')) : '—'}</td>
+        <td class="mut">${esc(k.confirme_par_email||'')}</td>
+      </tr>
+      <tr class="detail"><td colspan="6">${sub}</td></tr>`;
+    }).join("");
+    div.innerHTML = `
+      <div class="head">
+        <div>
+          <h2>${esc(c.nom)}</h2>
+          <p class="mut">genre ${esc(c.genre||'—')} · ${esc(c.date||'')} ${c.lieu?'· '+esc(c.lieu):''}${c.date_limite?' — limite '+esc(c.date_limite):''}</p>
+        </div>
+        <span class="badge ${complet?'ok':'warn'}">${c.clubs_confirmes}/${c.clubs_total} clubs</span>
+      </div>
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      <div class="stats">
+        <span><b>${attendusTotal}</b> qualifiés attendus</span>
+        <span><b>${c.tireurs_presents}</b> présents confirmés</span>
+        <span><b>${c.arbitres}</b> arbitres</span>
+        <span><b>${c.clubs_en_attente}</b> clubs en attente</span>
+        <span style="margin-left:auto"><a class="btn" href="/api/dashboard/export/${c.id}">Export Excel</a></span>
+      </div>
+      <table>
+        <thead><tr><th>Club</th><th>Statut</th><th>Présents/attendus</th><th>Arbitres</th><th>Confirmé le</th><th>Par</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="6" class="mut">Aucun club.</td></tr>'}</tbody>
+      </table>`;
+    return div;
+  }
+
+  charger();
+</script>
+</body>
+</html>
