@@ -79,3 +79,27 @@ def test_export_xlsx(client):
     assert wb["Tireurs"].max_row == 3
     assert wb["Arbitres"].max_row == 2
     assert wb["Arbitres"].cell(2, 5).value == "national"
+
+
+def test_roster_attendus_et_arme_genre(client):
+    data = client.get("/api/dashboard").get_json()
+    comp1 = next(c for c in data["competitions"] if c["id"] == 1)
+    # champs de regroupement exposés
+    assert "arme" in comp1 and "genre" in comp1
+    # avant toute confirmation : attendus présents, rien de saisi
+    chalons = next(k for k in comp1["clubs"] if k["club"].startswith("C.E. de Châlons"))
+    assert chalons["attendus_total"] == 2
+    assert len(chalons["attendus"]) == 2
+    assert all(a["saisi"] is False and a["present"] is None for a in chalons["attendus"])
+    # après confirmation : le roster reflète la saisie, attendus_total inchangé
+    g = client.get("/api/c/tok-chalons").get_json()
+    mine = [q["id"] for q in g["qualifies"] if q["mine"]]
+    client.post("/api/confirm/tok-chalons", json={
+        "participations": [{"qualifie_id": mine[0], "present": True, "taille_veste": "M"},
+                           {"qualifie_id": mine[1], "present": False}]})
+    data = client.get("/api/dashboard").get_json()
+    comp1 = next(c for c in data["competitions"] if c["id"] == 1)
+    chalons = next(k for k in comp1["clubs"] if k["club"].startswith("C.E. de Châlons"))
+    assert chalons["attendus_total"] == 2
+    assert all(a["saisi"] for a in chalons["attendus"])
+    assert sum(1 for a in chalons["attendus"] if a["present"]) == 1

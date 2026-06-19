@@ -15,13 +15,13 @@ def is_admin(token):
 
 def agreger(conn):
     competitions = conn.execute(
-        "SELECT id, nom, categorie, format, date, lieu, date_limite "
+        "SELECT id, nom, categorie, format, arme, genre, date, lieu, date_limite "
         "FROM competition ORDER BY date_limite, nom"
     ).fetchall()
     out = []
     for comp in competitions:
         confs = conn.execute(
-            "SELECT cf.id, cf.token, cf.statut, cf.date_confirmation, "
+            "SELECT cf.id, cf.club_id, cf.token, cf.statut, cf.date_confirmation, "
             "       cf.confirme_par_email, cl.nom AS club_nom, cl.email AS club_email "
             "FROM confirmation cf JOIN club cl ON cl.id = cf.club_id "
             "WHERE cf.competition_id = ? ORDER BY cl.nom",
@@ -55,6 +55,29 @@ def agreger(conn):
                     (cf["id"],),
                 ).fetchall()
             ]
+            attendus = [
+                {"qualifie_id": q["id"], "nom": q["nom"], "prenom": q["prenom"],
+                 "section": q["section"], "equipe": q["equipe"], "rang": q["rang"]}
+                for q in conn.execute(
+                    "SELECT id, nom, prenom, section, equipe, rang FROM qualifie "
+                    "WHERE competition_id = ? AND club_id = ? ORDER BY equipe, rang, nom",
+                    (comp["id"], cf["club_id"]),
+                ).fetchall()
+            ]
+            saisie = {
+                pt["qualifie_id"]: pt for pt in conn.execute(
+                    "SELECT qualifie_id, present, taille_veste, categorie_age "
+                    "FROM participation_tireur WHERE confirmation_id = ?",
+                    (cf["id"],),
+                ).fetchall()
+            }
+            roster = []
+            for at in attendus:
+                pt = saisie.get(at["qualifie_id"])
+                roster.append({**at, "saisi": pt is not None,
+                               "present": (pt["present"] if pt else None),
+                               "taille_veste": (pt["taille_veste"] if pt else None),
+                               "categorie_age": (pt["categorie_age"] if pt else None)})
             if cf["statut"] == "confirmee":
                 n_confirmes += 1
             n_presents += presents
@@ -64,12 +87,14 @@ def agreger(conn):
                 "statut": cf["statut"], "date_confirmation": cf["date_confirmation"],
                 "confirme_par_email": cf["confirme_par_email"],
                 "presents": presents, "arbitres": arbitres,
-                "tireurs": tireurs, "token": cf["token"],
+                "tireurs": tireurs, "attendus": roster,
+                "attendus_total": len(attendus), "token": cf["token"],
             })
         total = len(confs)
         out.append({
             "id": comp["id"], "nom": comp["nom"], "categorie": comp["categorie"],
-            "format": comp["format"], "date": comp["date"], "lieu": comp["lieu"],
+            "format": comp["format"], "arme": comp["arme"], "genre": comp["genre"],
+            "date": comp["date"], "lieu": comp["lieu"],
             "date_limite": comp["date_limite"], "clubs_total": total,
             "clubs_confirmes": n_confirmes, "clubs_en_attente": total - n_confirmes,
             "tireurs_presents": n_presents, "arbitres": n_arbitres, "clubs": clubs,

@@ -9,6 +9,7 @@ from flask import Flask, jsonify, redirect, url_for
 from routes.confirm import bp as bp_confirm
 from routes.dashboard import bp as bp_dashboard
 from routes.auth import bp as bp_auth
+from routes.import_api import bp as bp_import
 
 
 def create_app():
@@ -32,6 +33,7 @@ def create_app():
     app.register_blueprint(bp_auth)
     app.register_blueprint(bp_confirm)
     app.register_blueprint(bp_dashboard)
+    app.register_blueprint(bp_import)
     return app
 
 
