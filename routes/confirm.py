@@ -146,9 +146,10 @@ def enregistrer_confirmation(token):
             {
                 "nom": r["nom"], "prenom": r["prenom"], "present": bool(r["present"]),
                 "taille_veste": r["taille_veste"], "categorie_age": r["categorie_age"],
+                "equipe": r["equipe"], "section": r["section"],
             }
             for r in conn.execute(
-                "SELECT q.nom, q.prenom, pt.present, pt.taille_veste, pt.categorie_age "
+                "SELECT q.nom, q.prenom, q.equipe, q.section, pt.present, pt.taille_veste, pt.categorie_age "
                 "FROM participation_tireur pt "
                 "LEFT JOIN qualifie q ON q.id = pt.qualifie_id "
                 "WHERE pt.confirmation_id = ? ORDER BY q.equipe, q.rang, q.nom",
