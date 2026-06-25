@@ -2,7 +2,7 @@
 import os
 from db import get_connection, DB_PATH, BASE_DIR
 
-SCHEMA_VERSION = 2  # incrémenter à chaque nouvelle migration
+SCHEMA_VERSION = 3  # incrémenter à chaque nouvelle migration
 
 MIGRATIONS = {
     2: [
@@ -12,6 +12,10 @@ MIGRATIONS = {
         " nom TEXT NOT NULL,"
         " mdp_hash TEXT NOT NULL,"
         " role TEXT NOT NULL CHECK(role IN ('admin','secretariat')))",
+    ],
+    3: [
+        "ALTER TABLE confirmation ADD COLUMN corrige_par TEXT",
+        "ALTER TABLE confirmation ADD COLUMN date_correction TEXT",
     ],
 }
 
@@ -28,6 +32,7 @@ def migrate(db_path=None):
         current = conn.execute("PRAGMA user_version").fetchone()[0]
         if current == 0:
             _apply_base_schema(conn)
+            current = SCHEMA_VERSION  # base neuve = schema.sql complet, pas de migration à rejouer
         for version in sorted(MIGRATIONS):
             if version > current:
                 for stmt in MIGRATIONS[version]:

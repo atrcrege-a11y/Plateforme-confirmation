@@ -70,6 +70,51 @@
 <script>
   function esc(s){ return (s==null?"":String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
+  const ROSTERS = {}, CATS = {};
+  const BTN = "font:inherit;padding:5px 12px;border:1px solid var(--info);border-radius:8px;background:#fff;color:var(--info);cursor:pointer";
+  function champFor(cat){
+    const c = (cat||'').toUpperCase();
+    if(c.startsWith('M15')) return {key:'taille_veste', label:'Veste', options:['T8','T10','T12','T14','S','M','L','XL']};
+    if(/^V[1-4]$/.test(c) || c.startsWith('VETERAN') || c.startsWith('VÉTÉRAN')) return {key:'categorie_age', label:'Catégorie', options:['V1-V2','V3-V4']};
+    return null;
+  }
+  function ouvrirCorrection(confId){
+    const cell = document.getElementById('det-'+confId);
+    const roster = ROSTERS[confId] || [], champ = champFor(CATS[confId]);
+    if(!roster.length){ cell.innerHTML = '<p class="mut" style="margin:6px 0">Aucun qualifié importé pour ce club.</p>'; return; }
+    const champTh = champ ? `<th>${esc(champ.label)}</th>` : '';
+    const body = roster.map(t => {
+      const pres = `<select class="corr-pres" data-qid="${t.qualifie_id}"><option value="oui"${t.present ? ' selected':''}>Présent</option><option value="non"${t.present ? '':' selected'}>Absent</option></select>`;
+      let champTd = '';
+      if(champ){
+        const cur = t[champ.key] || '';
+        const opts = ['<option value="">—</option>'].concat(champ.options.map(o => `<option${o===cur?' selected':''}>${esc(o)}</option>`)).join('');
+        champTd = `<td><select class="corr-champ" data-qid="${t.qualifie_id}">${opts}</select></td>`;
+      }
+      return `<tr><td>${esc(t.nom)} ${esc(t.prenom)}</td><td>${esc(t.equipe||t.section||'—')}</td><td>${pres}</td>${champTd}</tr>`;
+    }).join('');
+    cell.innerHTML = `<table class="sub"><thead><tr><th>Tireur</th><th>Équipe / section</th><th>Présence</th>${champTh}</tr></thead><tbody>${body}</tbody></table>`
+      + `<div style="margin:8px 0"><button onclick="enregistrerCorrection(${confId})" style="${BTN}">Enregistrer la correction</button>`
+      + ` <button onclick="charger()" style="${BTN}">Annuler</button>`
+      + ` <span id="corrmsg-${confId}" class="mut" style="margin-left:8px"></span></div>`;
+  }
+  async function enregistrerCorrection(confId){
+    const cell = document.getElementById('det-'+confId);
+    const champ = champFor(CATS[confId]);
+    const champByQid = {};
+    cell.querySelectorAll('.corr-champ').forEach(sel => { champByQid[sel.dataset.qid] = sel.value; });
+    const participations = [...cell.querySelectorAll('.corr-pres')].map(sel => {
+      const p = {qualifie_id: +sel.dataset.qid, present: sel.value === 'oui'};
+      if(champ) p[champ.key] = champByQid[sel.dataset.qid] || null;
+      return p;
+    });
+    const msg = document.getElementById('corrmsg-'+confId);
+    msg.textContent = 'Enregistrement…';
+    const r = await fetch('/api/dashboard/corriger/'+confId, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({participations, arbitres: []})});
+    if(r.ok){ charger(); }
+    else { const e = await r.json().catch(()=>({})); msg.textContent = 'Erreur : ' + (e.error || r.status); }
+  }
+
   const CAT_ORDER = ['M13','M15','M17','M20','M23','Senior','Seniors','V1','V2','V3','V4','Veterans','Vétérans'];
   function catRank(c){ const i = CAT_ORDER.indexOf(c); return i < 0 ? 999 : i; }
   const ARME_ORDER = ['Fleuret','Épée','Sabre'];
@@ -141,6 +186,7 @@
     const rows = c.clubs.map(k => {
       const conf = k.statut === "confirmee";
       const roster = k.attendus || [];
+      ROSTERS[k.confirmation_id] = roster; CATS[k.confirmation_id] = c.categorie;
       const sub = roster.length
         ? `<table class="sub">
              <thead><tr><th>Tireur</th><th>Équipe / section</th><th>Présence</th><th>Veste</th></tr></thead>
@@ -165,7 +211,7 @@
         <td>${k.date_confirmation ? esc(k.date_confirmation.replace('T',' ')) : '—'}</td>
         <td class="mut">${esc(k.confirme_par_email||'')}</td>
       </tr>
-      <tr class="detail"><td colspan="6">${sub}</td></tr>`;
+      <tr class="detail"><td colspan="6" id="det-${k.confirmation_id}">${sub}<div style="margin-top:8px"><button onclick="ouvrirCorrection(${k.confirmation_id})" style="${BTN}">✎ Modifier</button>${k.corrige_par ? `<span class="mut" style="margin-left:10px">✎ corrigé par ${esc(k.corrige_par)}${k.date_correction ? ' le '+esc(k.date_correction.replace('T',' ')) : ''}</span>` : ''}</div></td></tr>`;
     }).join("");
     div.innerHTML = `
       <div class="head">

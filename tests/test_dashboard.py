@@ -103,3 +103,41 @@ def test_roster_attendus_et_arme_genre(client):
     assert chalons["attendus_total"] == 2
     assert all(a["saisi"] for a in chalons["attendus"])
     assert sum(1 for a in chalons["attendus"] if a["present"]) == 1
+
+
+def test_correction_manuelle_tracee(client):
+    data = client.get("/api/dashboard").get_json()
+    comp1 = next(c for c in data["competitions"] if c["id"] == 1)
+    club = next(k for k in comp1["clubs"] if len(k["attendus"]) >= 2)
+    cid = club["confirmation_id"]
+    qids = [a["qualifie_id"] for a in club["attendus"]]
+    r = client.post(f"/api/dashboard/corriger/{cid}", json={"participations": [
+        {"qualifie_id": qids[0], "present": True, "taille_veste": "M"},
+        {"qualifie_id": qids[1], "present": False},
+    ]})
+    assert r.status_code == 200
+    assert r.get_json()["corrige_par"] == "admin@x.fr"
+    data2 = client.get("/api/dashboard").get_json()
+    comp1b = next(c for c in data2["competitions"] if c["id"] == 1)
+    clubb = next(k for k in comp1b["clubs"] if k["confirmation_id"] == cid)
+    assert clubb["statut"] == "confirmee"
+    assert clubb["corrige_par"] == "admin@x.fr" and clubb["date_correction"]
+    assert not clubb["confirme_par_email"]  # PAS une auto-confirmation club
+    assert clubb["presents"] == 1
+
+
+def test_correction_respecte_cloisonnement(client):
+    data = client.get("/api/dashboard").get_json()
+    comp1 = next(c for c in data["competitions"] if c["id"] == 1)
+    clubs = [k for k in comp1["clubs"] if k["attendus"]]
+    cid_a = clubs[0]["confirmation_id"]
+    qid_autre_club = clubs[1]["attendus"][0]["qualifie_id"]
+    r = client.post(f"/api/dashboard/corriger/{cid_a}", json={
+        "participations": [{"qualifie_id": qid_autre_club, "present": False}]})
+    assert r.status_code == 403
+
+
+def test_correction_exige_connexion(client):
+    client.get("/logout")
+    r = client.post("/api/dashboard/corriger/1", json={"participations": []})
+    assert r.status_code == 401

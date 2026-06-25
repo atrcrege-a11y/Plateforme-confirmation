@@ -22,7 +22,8 @@ def agreger(conn):
     for comp in competitions:
         confs = conn.execute(
             "SELECT cf.id, cf.club_id, cf.token, cf.statut, cf.date_confirmation, "
-            "       cf.confirme_par_email, cl.nom AS club_nom, cl.email AS club_email "
+            "       cf.confirme_par_email, cf.corrige_par, cf.date_correction, "
+            "       cl.nom AS club_nom, cl.email AS club_email "
             "FROM confirmation cf JOIN club cl ON cl.id = cf.club_id "
             "WHERE cf.competition_id = ? ORDER BY cl.nom",
             (comp["id"],),
@@ -86,9 +87,11 @@ def agreger(conn):
                 "club": cf["club_nom"], "email": cf["club_email"],
                 "statut": cf["statut"], "date_confirmation": cf["date_confirmation"],
                 "confirme_par_email": cf["confirme_par_email"],
+                "corrige_par": cf["corrige_par"], "date_correction": cf["date_correction"],
                 "presents": presents, "arbitres": arbitres,
                 "tireurs": tireurs, "attendus": roster,
                 "attendus_total": len(attendus), "token": cf["token"],
+                "confirmation_id": cf["id"],
             })
         total = len(confs)
         out.append({

@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS confirmation (
                         CHECK(statut IN ('en_attente','confirmee')),
     date_confirmation   TEXT,
     confirme_par_email  TEXT,
+    corrige_par         TEXT,                       -- email admin/secrétariat si correction manuelle
+    date_correction     TEXT,
     UNIQUE(competition_id, club_id)
 );
 
