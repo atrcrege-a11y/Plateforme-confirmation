@@ -146,3 +146,13 @@ def test_suivi_lecture_token(client):
     assert sum(k["attendus_total"] for k in c["clubs"]) == 3
     # token invalide => 404
     assert client.get("/api/suivi/mauvais").status_code == 404
+
+
+def test_creation_notifie_secretariat_une_seule_fois(client, monkeypatch):
+    import routes.import_api as iapi
+    calls = []
+    monkeypatch.setattr(iapi, "notifier_creation_selection",
+                        lambda comp, resume: calls.append(comp.get("nom")))
+    client.post(f"/api/import/{TOKEN}", json=_payload())   # création -> notifie
+    client.post(f"/api/import/{TOKEN}", json=_payload())   # ré-import -> pas de notif
+    assert calls == ["FÊTE DES JEUNES"]

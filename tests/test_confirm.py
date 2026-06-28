@@ -142,3 +142,26 @@ def test_m20_equipe_simple(client):
     r = client.post("/api/confirm/tok-m20-chalons", json={
         "participations": [{"qualifie_id": i, "present": True} for i in mine]})
     assert r.status_code == 201
+
+
+def test_accuse_club_envoye_au_club(client):
+    data = client.get("/api/c/tok-chalons").get_json()
+    mine = [q["id"] for q in data["qualifies"] if q["mine"]]
+    body = {"confirme_par_email": "chalons@x.fr",
+            "participations": [{"qualifie_id": mine[0], "present": True, "taille_veste": "M"}]}
+    r = client.post("/api/confirm/tok-chalons", json=body)
+    assert r.status_code == 201
+    ac = r.get_json()["accuse_club"]
+    # l'accusé part vers l'email du club (dry-run en test, pas de SMTP)
+    assert ac["dry_run"] is True and ac["sent"] is False
+    assert ac["recipients"] == ["chalons@x.fr"]
+
+
+def test_modification_relance_un_mail(client):
+    data = client.get("/api/c/tok-chalons").get_json()
+    mine = [q["id"] for q in data["qualifies"] if q["mine"]]
+    body = {"participations": [{"qualifie_id": mine[0], "present": True, "taille_veste": "M"}]}
+    r1 = client.post("/api/confirm/tok-chalons", json=body)
+    assert r1.get_json()["modification"] is False   # 1re fois = confirmation
+    r2 = client.post("/api/confirm/tok-chalons", json=body)
+    assert r2.get_json()["modification"] is True     # 2e fois = modification

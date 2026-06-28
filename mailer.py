@@ -1,4 +1,4 @@
-"""mailer.py — Notifications email au secrétariat (détail nominatif). Best-effort."""
+"""mailer.py — Notifications email (secrétariat + clubs). Best-effort."""
 import os
 import smtplib
 import ssl
@@ -21,12 +21,14 @@ def _ligne_tireur(t):
     return f"- {base}"
 
 
-def construire_message(competition_nom, club_nom, tireurs, arbitres):
+def construire_message(competition_nom, club_nom, tireurs, arbitres, modification=False):
     presents = [t for t in tireurs if t.get("present")]
     absents = [t for t in tireurs if not t.get("present")]
-    sujet = f"[Confirmation LREGE] {club_nom} — {competition_nom}"
+    libelle = "Modification" if modification else "Confirmation"
+    verbe = "a MODIFIÉ" if modification else "a confirmé"
+    sujet = f"[{libelle} LREGE] {club_nom} — {competition_nom}"
     lignes = [
-        f"Le club « {club_nom} » a confirmé sa participation.",
+        f"Le club « {club_nom} » {verbe} sa participation.",
         "",
         f"Compétition : {competition_nom}",
         "",
@@ -57,7 +59,8 @@ def _badge(texte, bg, fg):
             f'border-radius:8px;background:{bg};color:{fg}">{texte}</span>')
 
 
-def construire_message_html(competition_nom, club_nom, tireurs, arbitres):
+def construire_message_html(competition_nom, club_nom, tireurs, arbitres,
+                            intro=None, badge_texte="Confirmé"):
     OK_BG, OK = "#e9f5ee", "#2f7d4f"
     KO_BG, KO = "#f6e4e3", "#b3261e"
     TXT, MUT, BORD = "#1f2328", "#5f6b76", "#e0ddd5"
@@ -98,17 +101,21 @@ def construire_message_html(competition_nom, club_nom, tireurs, arbitres):
                f'<ul style="margin:0;padding-left:18px;font-size:13px;color:{TXT}">'
                f'{items}</ul>')
 
+    intro_html = (f'<p style="margin:8px 0 0;color:{TXT};font-size:14px">{_esc(intro)}</p>'
+                  if intro else '')
+
     return (
         f'<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;'
         f'color:{TXT};background:#f4f4f2;padding:16px">'
         f'<div style="max-width:640px;margin:0 auto;border:1px solid {BORD};'
         f'border-radius:12px;padding:16px 20px;background:#fff">'
         f'<h2 style="font-size:17px;font-weight:600;margin:0 0 2px">'
-        f'{_esc(club_nom)} &nbsp; {_badge("Confirmé", OK_BG, OK)}</h2>'
+        f'{_esc(club_nom)} &nbsp; {_badge(_esc(badge_texte), OK_BG, OK)}</h2>'
         f'<p style="margin:2px 0 0;color:{MUT};font-size:13px">{_esc(competition_nom)}</p>'
         f'<p style="margin:6px 0 0;color:{MUT};font-size:13px">'
         f'<b style="color:{TXT}">{len(presents)}/{len(tireurs)}</b> présents'
         f' · <b style="color:{TXT}">{len(arbitres)}</b> arbitre(s)</p>'
+        f'{intro_html}'
         f'{table}{arb}'
         f'<p style="margin:14px 0 0;color:{MUT};font-size:12px">'
         f'— Plateforme de confirmation LREGE</p>'
@@ -126,6 +133,61 @@ def construire_rappel(club_nom, competition_nom, date_limite, jours_restants, li
         f"— Plateforme de confirmation LREGE"
     )
     return sujet, corps
+
+
+def construire_accuse_club(competition_nom, club_nom, tireurs, arbitres, modification=False):
+    """Accusé envoyé AU CLUB après validation/modification, avec le détail confirmé."""
+    presents = [t for t in tireurs if t.get("present")]
+    absents = [t for t in tireurs if not t.get("present")]
+    if modification:
+        sujet = f"[LREGE] Sélection mise à jour — {competition_nom}"
+        phrase = f"Votre sélection pour « {competition_nom} » a bien été mise à jour. Merci !"
+    else:
+        sujet = f"[LREGE] Confirmation enregistrée — {competition_nom}"
+        phrase = f"Votre confirmation pour « {competition_nom} » a bien été enregistrée. Merci !"
+    lignes = [
+        f"Bonjour {club_nom},",
+        "",
+        phrase,
+        "",
+        "Récapitulatif de ce que vous avez validé :",
+        "",
+        f"Présents ({len(presents)}) :",
+    ]
+    lignes += [_ligne_tireur(t) for t in presents] or ["- (aucun)"]
+    if absents:
+        lignes += ["", f"Absents ({len(absents)}) :"]
+        lignes += [f"- {(a.get('prenom', '') + ' ' + a.get('nom', '')).strip()}"
+                   for a in absents]
+    lignes += ["", f"Arbitres ({len(arbitres)}) :"]
+    lignes += [f"- {(a.get('prenom', '') + ' ' + a.get('nom', '')).strip()}"
+               f" ({a.get('club', '')}, {a.get('niveau', '')})"
+               for a in arbitres] or ["- (aucun)"]
+    lignes += ["", "Une erreur ? Contactez le secrétariat avant la date limite.",
+               "", "— Plateforme de confirmation LREGE"]
+    return sujet, "\n".join(lignes)
+
+
+def construire_creation_selection(comp, resume):
+    """Notification au secrétariat : une nouvelle sélection a été importée."""
+    nom = comp.get("nom", "")
+    sujet = f"[LREGE] Nouvelle sélection en ligne — {nom}"
+    lignes = [
+        "Une nouvelle sélection vient d'être publiée sur la plateforme de confirmation.",
+        "",
+        f"Compétition : {nom}",
+        f"Catégorie : {comp.get('categorie', '—')} · Format : {comp.get('format', '—')}"
+        f" · Arme : {comp.get('arme', '—')} · Genre : {comp.get('genre', '—')}",
+        f"Date limite de confirmation : {comp.get('date_limite') or '—'}",
+        "",
+        f"Clubs concernés : {resume.get('clubs', 0)}",
+        f"Qualifiés / équipes importés : {resume.get('qualifies_recus', 0)}",
+        "",
+        "Les clubs vont pouvoir confirmer leur participation via leur lien.",
+        "",
+        "— Plateforme de confirmation LREGE",
+    ]
+    return sujet, "\n".join(lignes)
 
 
 def _envoyer(recipients, sujet, corps, html=None):
@@ -157,10 +219,39 @@ def _envoyer(recipients, sujet, corps, html=None):
     return resultat
 
 
-def notifier_confirmation(competition_nom, club_nom, tireurs, arbitres):
-    sujet, corps = construire_message(competition_nom, club_nom, tireurs, arbitres)
-    html = construire_message_html(competition_nom, club_nom, tireurs, arbitres)
+def notifier_confirmation(competition_nom, club_nom, tireurs, arbitres, modification=False):
+    sujet, corps = construire_message(competition_nom, club_nom, tireurs, arbitres,
+                                      modification=modification)
+    intro = "⚠️ Sélection MODIFIÉE par le club." if modification else None
+    badge = "Modifié" if modification else "Confirmé"
+    html = construire_message_html(competition_nom, club_nom, tireurs, arbitres,
+                                   intro=intro, badge_texte=badge)
     return _envoyer(_recipients(), sujet, corps, html)
+
+
+def notifier_accuse_club(competition_nom, club_nom, club_email, tireurs, arbitres,
+                         modification=False):
+    """Accusé détaillé AU CLUB après validation/modification. Best-effort.
+
+    Sans club_email, ne tente aucun envoi (retourne un résultat 'non envoyé').
+    """
+    if not (club_email or "").strip():
+        return {"sent": False, "dry_run": False, "recipients": [],
+                "subject": None, "error": "club_email manquant"}
+    sujet, corps = construire_accuse_club(competition_nom, club_nom, tireurs, arbitres,
+                                          modification=modification)
+    intro = ("Votre sélection a bien été mise à jour." if modification
+             else "Votre confirmation a bien été enregistrée. Merci !")
+    badge = "Modifié" if modification else "Confirmé"
+    html = construire_message_html(competition_nom, club_nom, tireurs, arbitres,
+                                   intro=intro, badge_texte=badge)
+    return _envoyer([club_email.strip()], sujet, corps, html)
+
+
+def notifier_creation_selection(comp, resume):
+    """Prévient le secrétariat (+ thomas) qu'une nouvelle sélection a été importée."""
+    sujet, corps = construire_creation_selection(comp, resume)
+    return _envoyer(_recipients(), sujet, corps)
 
 
 def notifier_rappel_club(club_email, club_nom, competition_nom,

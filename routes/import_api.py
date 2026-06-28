@@ -8,6 +8,7 @@ from flask import Blueprint, jsonify, request, abort
 from db import get_connection
 import dashboard as dash
 from import_selecge import importer
+from mailer import notifier_creation_selection
 
 bp = Blueprint("import_api", __name__)
 
@@ -27,6 +28,12 @@ def api_import(token):
             conn.rollback()
             abort(400, description=str(e))
         conn.commit()
+        # Prévient le secrétariat uniquement pour une NOUVELLE sélection (pas les ré-imports)
+        if resume.get("competition_creee"):
+            try:
+                notifier_creation_selection(payload.get("competition", {}) or {}, resume)
+            except Exception:
+                pass
         return jsonify(resume), 201
     finally:
         conn.close()

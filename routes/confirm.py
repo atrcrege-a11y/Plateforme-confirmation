@@ -6,7 +6,7 @@ from flask import Blueprint, jsonify, request, abort, render_template
 from db import get_connection
 from arbitrage import calculer_arbitres_requis, NIVEAUX_ARBITRE
 from champs import champs_tireur
-from mailer import notifier_confirmation
+from mailer import notifier_confirmation, notifier_accuse_club
 
 bp = Blueprint("confirm", __name__)
 
@@ -89,9 +89,11 @@ def enregistrer_confirmation(token):
         conf = _confirmation(conn, token)
         if conf is None:
             abort(404, description="Lien invalide ou expiré")
+        # Modification = le club re-soumet une sélection DÉJÀ confirmée.
+        est_modification = conf["statut"] == "confirmee"
         comp_id, club_id = conf["competition_id"], conf["club_id"]
         comp = _row(conn, "SELECT categorie, nom FROM competition WHERE id = ?", (comp_id,))
-        club = _row(conn, "SELECT nom FROM club WHERE id = ?", (club_id,))
+        club = _row(conn, "SELECT nom, email FROM club WHERE id = ?", (club_id,))
 
         ids = [p.get("qualifie_id") for p in participations]
         if ids:
@@ -161,13 +163,21 @@ def enregistrer_confirmation(token):
              "club": a.get("club"), "niveau": a.get("niveau")}
             for a in arbitres
         ]
-        notif = notifier_confirmation(comp["nom"], club["nom"], tireurs_detail, arbitres_detail)
+        notif = notifier_confirmation(comp["nom"], club["nom"], tireurs_detail,
+                                      arbitres_detail, modification=est_modification)
+        # Accusé détaillé au club (best-effort, n'altère pas la confirmation)
+        accuse = notifier_accuse_club(comp["nom"], club["nom"], club["email"],
+                                      tireurs_detail, arbitres_detail,
+                                      modification=est_modification)
 
         return jsonify({
             "statut": "confirmee",
+            "modification": est_modification,
             "tireurs_enregistres": len(participations),
             "arbitres_enregistres": len(arbitres),
             "notification": {"dry_run": notif["dry_run"], "sent": notif["sent"]},
+            "accuse_club": {"dry_run": accuse["dry_run"], "sent": accuse["sent"],
+                            "recipients": accuse["recipients"]},
         }), 201
     finally:
         conn.close()

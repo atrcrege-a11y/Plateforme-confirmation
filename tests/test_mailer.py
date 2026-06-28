@@ -88,3 +88,87 @@ def test_notif_confirmation_envoie_html(monkeypatch):
     assert captures["html"] and "<table" in captures["html"]
     assert "Escrime Nancy" in captures["html"]
     assert captures["corps"]  # version texte conservée
+
+
+# -- Accusé de réception AU CLUB (avec détail) -------------------------
+
+def test_accuse_club_detail():
+    sujet, corps = mailer.construire_accuse_club(
+        "CDF Équipes Sabre", "CE Strasbourg", TIREURS, ARBITRES)
+    assert "enregistrée" in sujet and "CDF Équipes Sabre" in sujet
+    assert "bien été enregistrée" in corps
+    assert "Présents (2)" in corps
+    assert "Léa Durand — veste M" in corps          # détail présent
+    assert "Max Roy (Nancy, national)" in corps      # arbitre
+
+
+def test_message_html_intro_optionnel():
+    sans = mailer.construire_message_html("X", "Club Y", TIREURS, [])
+    avec = mailer.construire_message_html("X", "Club Y", TIREURS, [], intro="Merci !")
+    assert "Merci !" not in sans          # rétro-compatible (secrétariat inchangé)
+    assert "Merci !" in avec
+
+
+def test_accuse_html_montre_la_division():
+    eq = [{"nom": "GE Sabre 1", "prenom": "", "present": 1,
+           "equipe": "N1 — Hommes", "section": "N1", "taille_veste": None}]
+    html = mailer.construire_message_html("CDF", "CE Strasbourg", eq, [],
+                                          intro="Votre confirmation a bien été enregistrée. Merci !")
+    assert "N1 — Hommes" in html and "bien été enregistrée" in html
+
+
+def test_notifier_accuse_club_vers_le_club():
+    _clean_env()
+    r = mailer.notifier_accuse_club("CDF", "CE X", "club@example.fr", TIREURS, ARBITRES)
+    assert r["recipients"] == ["club@example.fr"]
+    assert r["dry_run"] is True and r["sent"] is False
+
+
+def test_notifier_accuse_club_sans_email_ne_part_pas():
+    r = mailer.notifier_accuse_club("CDF", "CE X", "", TIREURS, [])
+    assert r["sent"] is False and r["recipients"] == []
+    assert r["error"] == "club_email manquant"
+
+
+# -- Modification par le club + notification de création ----------------
+
+def test_message_modification_label():
+    sujet, corps = mailer.construire_message("CDF", "CE X", TIREURS, ARBITRES, modification=True)
+    assert sujet.startswith("[Modification LREGE]")
+    assert "a MODIFIÉ" in corps
+
+
+def test_accuse_modification_label():
+    sujet, corps = mailer.construire_accuse_club("CDF", "CE X", TIREURS, [], modification=True)
+    assert "mise à jour" in sujet.lower()
+    assert "mise à jour" in corps.lower()
+
+
+def test_notifier_confirmation_modification_html(monkeypatch):
+    cap = {}
+
+    def fake(recipients, sujet, corps, html=None):
+        cap.update(sujet=sujet, html=html)
+        return {"sent": True, "dry_run": False, "recipients": recipients,
+                "subject": sujet, "error": None}
+
+    monkeypatch.setattr(mailer, "_envoyer", fake)
+    mailer.notifier_confirmation("CDF", "CE X", TIREURS, ARBITRES, modification=True)
+    assert cap["sujet"].startswith("[Modification LREGE]")
+    assert "Modifié" in cap["html"] and "MODIFIÉE" in cap["html"]
+
+
+def test_creation_selection_contenu():
+    comp = {"nom": "CDF Sabre Seniors", "categorie": "Seniors", "format": "equipe",
+            "arme": "sabre", "genre": "HD", "date_limite": "10/03/2026"}
+    sujet, corps = mailer.construire_creation_selection(comp, {"clubs": 5, "qualifies_recus": 12})
+    assert "Nouvelle sélection" in sujet and "CDF Sabre Seniors" in sujet
+    assert "Clubs concernés : 5" in corps and "12" in corps
+
+
+def test_notifier_creation_vers_secretariat():
+    _clean_env()
+    r = mailer.notifier_creation_selection({"nom": "X"}, {"clubs": 1, "qualifies_recus": 1})
+    assert "atrcrege@gmail.com" in r["recipients"]
+    assert "thomas.ducourant@gmail.com" in r["recipients"]
+    assert r["dry_run"] is True
