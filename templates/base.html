@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Escrime Grand Est{% endblock %}</title>
+<link rel="icon" href="{{ url_for('static', filename='logo.png') }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% block head_extra %}{% endblock %}
+</head>
+<body>
+<header class="app-header">
+  <div class="inner">
+    <div class="brand">
+      <img class="logo" src="{{ url_for('static', filename='logo_white.png') }}" alt="Escrime Grand Est">
+      <div class="titles">
+        <h1>{% block header_title %}Escrime Grand Est{% endblock %}</h1>
+        <p>{% block header_sub %}Ligue Régionale d'Escrime du Grand Est{% endblock %}</p>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    {% block header_right %}{% endblock %}
+  </div>
+</header>
+
+{% block content %}{% endblock %}
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

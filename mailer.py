@@ -1,5 +1,6 @@
 """mailer.py — Notifications email (secrétariat + clubs). Best-effort."""
 import os
+import re
 import smtplib
 import ssl
 from email.message import EmailMessage
@@ -10,6 +11,15 @@ RECIPIENTS_DEFAUT = "atrcrege@gmail.com,thomas.ducourant@gmail.com"
 def _recipients():
     raw = os.environ.get("NOTIF_RECIPIENTS", RECIPIENTS_DEFAUT)
     return [a.strip() for a in raw.split(",") if a.strip()]
+
+
+def _date_fr(valeur):
+    """Formate une date ISO 'AAAA-MM-JJ' (ou 'AAAA-MM-JJTHH:MM') au format
+    français 'JJ/MM/AAAA'. Laisse la valeur inchangée si non reconnue
+    (ex. déjà '13/06/2026' venant de SelecGE) ; '' si vide."""
+    s = str(valeur or "").strip()
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", s)
+    return f"{m.group(3)}/{m.group(2)}/{m.group(1)}" if m else s
 
 
 def _ligne_tireur(t):
@@ -128,7 +138,7 @@ def construire_rappel(club_nom, competition_nom, date_limite, jours_restants, li
         f"Bonjour {club_nom},\n\n"
         f"La participation de votre club à « {competition_nom} » n'est pas encore "
         f"confirmée.\n\n"
-        f"Date limite : {date_limite} (J-{jours_restants}).\n"
+        f"Date limite : {_date_fr(date_limite)} (J-{jours_restants}).\n"
         f"Confirmez via votre lien : {lien}\n\n"
         f"— Plateforme de confirmation LREGE"
     )
@@ -178,7 +188,7 @@ def construire_creation_selection(comp, resume):
         f"Compétition : {nom}",
         f"Catégorie : {comp.get('categorie', '—')} · Format : {comp.get('format', '—')}"
         f" · Arme : {comp.get('arme', '—')} · Genre : {comp.get('genre', '—')}",
-        f"Date limite de confirmation : {comp.get('date_limite') or '—'}",
+        f"Date limite de confirmation : {_date_fr(comp.get('date_limite')) or '—'}",
         "",
         f"Clubs concernés : {resume.get('clubs', 0)}",
         f"Qualifiés / équipes importés : {resume.get('qualifies_recus', 0)}",

@@ -19,7 +19,8 @@ Contrat d'entrée (1 compétition par appel, cas INDIVIDUEL) :
       },
       "qualifies": [
         {"nom": str, "prenom": str, "club": str,
-         "section": str|None, "rang": int|None, "equipe": str|None}
+         "section": str|None, "rang": int|None, "equipe": str|None,
+         "genre": "H"|"D"|None}
       ]
     }
 
@@ -140,21 +141,23 @@ def _upsert_qualifie(conn, comp_id, club_id, q, stats):
     rang = int(rang) if rang not in (None, "") else None
     section = q.get("section")
     equipe = q.get("equipe")
+    genre = q.get("genre")  # 'H' | 'D' | None (onglets H/D)
+    rang_label = q.get("rang_label")  # 'CL NAT 24' / 'CL GE 3' (préfixe conservé)
     row = conn.execute(
         "SELECT id FROM qualifie WHERE competition_id=? AND club_id=? AND nom=? AND prenom=?",
         (comp_id, club_id, nom, prenom),
     ).fetchone()
     if row:
         conn.execute(
-            "UPDATE qualifie SET section=?, equipe=?, rang=? WHERE id=?",
-            (section, equipe, rang, row["id"]),
+            "UPDATE qualifie SET section=?, equipe=?, rang=?, rang_label=?, genre=? WHERE id=?",
+            (section, equipe, rang, rang_label, genre, row["id"]),
         )
         stats["qualifies_maj"] += 1
     else:
         conn.execute(
-            "INSERT INTO qualifie(competition_id,club_id,nom,prenom,section,equipe,rang)"
-            " VALUES (?,?,?,?,?,?,?)",
-            (comp_id, club_id, nom, prenom, section, equipe, rang),
+            "INSERT INTO qualifie(competition_id,club_id,nom,prenom,section,equipe,rang,rang_label,genre)"
+            " VALUES (?,?,?,?,?,?,?,?,?)",
+            (comp_id, club_id, nom, prenom, section, equipe, rang, rang_label, genre),
         )
         stats["qualifies_crees"] += 1
 

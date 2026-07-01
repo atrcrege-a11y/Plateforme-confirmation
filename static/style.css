@@ -1,0 +1,177 @@
+/* ============================================================
+   Charte Escrime Grand Est — feuille partagée
+   Couleurs tirées du site officiel escrime-grandest.fr
+   (marine #001A56, bleu #000D97, accent #0067FF)
+   Les NOMS de variables (--info, --ok, --warn, --bord...) sont
+   conservés car référencés en inline dans le JS des templates.
+   ============================================================ */
+:root{
+  /* identité */
+  --brand:#001a56;        /* marine — bandeau */
+  --brand-2:#000d97;      /* bleu profond */
+  --accent:#0067ff;       /* bleu vif — accents */
+
+  /* surfaces & texte */
+  --bg:#eef1f6;
+  --card:#ffffff;
+  --bord:#e3e7ee;
+  --bord2:#cdd4e0;
+  --txt:#16202e;
+  --mut:#5b6675;
+
+  /* états (noms repris par le JS) */
+  --info:#0b46c2;  --infobg:#e8eefc;
+  --ok:#1f7a46;    --okbg:#e7f4ec;
+  --warn:#8a5d0f;  --warnbg:#fbf0d9;
+  --err:#b3261e;   --errbg:#f6e4e3;
+
+  --radius:14px;
+  --shadow:0 1px 2px rgba(16,32,46,.04), 0 6px 18px rgba(16,32,46,.06);
+  --font:"Poppins","Segoe UI",system-ui,-apple-system,sans-serif;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--font);color:var(--txt);background:var(--bg);
+  margin:0;line-height:1.55;
+  font-feature-settings:"tnum" 1;
+}
+
+/* ---------- bandeau de marque ---------- */
+.app-header{
+  background:linear-gradient(120deg,var(--brand) 0%,var(--brand-2) 100%);
+  color:#fff;
+}
+.app-header .inner{
+  max-width:980px;margin:0 auto;padding:14px 18px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.app-header .brand{display:flex;align-items:center;gap:12px;min-width:0}
+.app-header img.logo{height:42px;width:auto;display:block;flex:none}
+.app-header .titles{min-width:0}
+.app-header .titles h1{
+  font-size:18px;font-weight:600;margin:0;letter-spacing:.2px;line-height:1.2;color:#fff;
+}
+.app-header .titles p{margin:2px 0 0;font-size:12.5px;color:#c9d4ec;font-weight:400}
+.app-header .spacer{margin-left:auto}
+
+/* barre utilisateur dans le bandeau */
+.userbar{display:flex;align-items:center;gap:14px;font-size:13px;color:#dbe3f4;flex-wrap:wrap}
+.userbar a{color:#fff;text-decoration:none;opacity:.9}
+.userbar a:hover{opacity:1;text-decoration:underline}
+.userbar .who{font-weight:500;color:#fff}
+.btn-ghost{
+  font:inherit;font-size:13px;padding:7px 14px;border:1px solid rgba(255,255,255,.4);
+  border-radius:9px;background:rgba(255,255,255,.08);color:#fff;cursor:pointer;
+}
+.btn-ghost:hover{background:rgba(255,255,255,.18)}
+
+/* ---------- conteneur ---------- */
+.wrap{max-width:980px;margin:0 auto;padding:22px 18px 40px}
+.wrap.narrow{max-width:800px}
+
+/* ---------- cartes ---------- */
+.card{
+  background:var(--card);border:1px solid var(--bord);border-radius:var(--radius);
+  padding:18px 20px;margin-bottom:16px;box-shadow:var(--shadow);
+}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+h1{font-size:21px;font-weight:600;margin:0 0 4px}
+h2{font-size:17px;font-weight:600;margin:0}
+.mut{color:var(--mut);font-size:13px}
+
+/* ---------- badges ---------- */
+.badge{font-size:12px;font-weight:500;padding:3px 11px;border-radius:999px;display:inline-block;line-height:1.7}
+.ok{background:var(--okbg);color:var(--ok)}
+.warn{background:var(--warnbg);color:var(--warn)}
+.badge.ko{background:var(--errbg);color:var(--err)}
+.badge.info{background:var(--infobg);color:var(--info)}
+
+/* ---------- boutons ---------- */
+button{font:inherit}
+.btn{
+  font-size:13px;text-decoration:none;color:var(--info);border:1px solid var(--info);
+  border-radius:9px;padding:6px 13px;display:inline-block;background:#fff;cursor:pointer;
+}
+.btn:hover{background:var(--infobg)}
+button.primary{
+  background:var(--info);color:#fff;border:1px solid var(--info);border-radius:10px;
+  padding:12px 16px;width:100%;font-weight:600;font-size:15px;cursor:pointer;
+  transition:filter .12s;
+}
+button.primary:hover{filter:brightness(1.08)}
+
+/* ---------- barre de progression ---------- */
+.bar{height:8px;border-radius:6px;background:var(--bord);overflow:hidden;margin:10px 0}
+.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--ok),#3aa46a);transition:width .4s}
+
+/* ---------- tableaux ---------- */
+table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+th,td{text-align:left;padding:8px 9px;border-top:1px solid var(--bord)}
+th{color:var(--mut);font-weight:600;font-size:12px;border-top:none;text-transform:uppercase;letter-spacing:.3px}
+.stats{display:flex;gap:18px;flex-wrap:wrap;margin:8px 0 0;font-size:13px;color:var(--mut)}
+.stats b{color:var(--txt)}
+
+/* ---------- dashboard : lignes club déroulables ---------- */
+tr.clubrow{cursor:pointer}
+tr.clubrow:hover td{background:var(--infobg)}
+.caret{display:inline-block;width:12px;color:var(--accent);transition:transform .15s}
+tr.clubrow.open .caret{transform:rotate(90deg)}
+tr.detail{display:none}
+tr.detail.open{display:table-row}
+tr.detail>td{background:#f7f9fc;padding:0 9px 12px 28px}
+table.sub{margin:8px 0 2px;font-size:13px}
+table.sub th,table.sub td{border-top:1px solid var(--bord);padding:5px 9px}
+
+/* ---------- dashboard : groupes repliables (catégorie/arme/type) ---------- */
+details.grp{border:1px solid var(--bord);border-radius:12px;background:#fff;margin-bottom:12px;box-shadow:var(--shadow)}
+details.grp>summary{cursor:pointer;padding:11px 16px;list-style:none;display:flex;align-items:center;gap:10px;font-weight:600}
+details.grp>summary::-webkit-details-marker{display:none}
+details.grp>summary:before{content:"\25B8";color:var(--accent);font-weight:400;transition:transform .15s}
+details.grp[open]>summary:before{transform:rotate(90deg)}
+.gcount{font-size:12px;color:var(--mut);font-weight:400;margin-left:auto}
+details.grp-cat>summary{font-size:16px}
+details.grp-arme{border:none;border-top:1px solid var(--bord);border-radius:0;margin:0 0 0 14px;box-shadow:none}
+details.grp-arme>summary{font-size:14px;color:var(--brand-2)}
+details.grp-type{border:none;border-radius:0;margin:0 0 0 16px;box-shadow:none}
+details.grp-type>summary{font-size:13px;color:var(--mut)}
+.grp-inner{padding:0 12px 6px}
+.grp-inner .card{box-shadow:none}
+
+/* ---------- confirmation : grilles tireurs ---------- */
+select,input{font:inherit;padding:8px 10px;border:1px solid var(--bord2);border-radius:9px;background:#fff;color:var(--txt)}
+select:focus,input:focus{outline:2px solid var(--infobg);border-color:var(--info)}
+.teamttl{font-size:15px;font-weight:600;margin:16px 0 2px;color:var(--brand-2)}
+.trow{display:grid;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--bord)}
+.trow.mine{background:var(--infobg);border-radius:10px;padding-left:10px;padding-right:10px}
+.trow.locked{opacity:.55}
+fieldset.arbitre-box{border:1px solid var(--bord2);border-radius:10px;padding:10px 12px;margin:8px 0}
+fieldset.arbitre-box legend{font-size:13px;font-weight:600;padding:0 6px;color:var(--brand-2)}
+fieldset.arbitre-box input,fieldset.arbitre-box select{margin:4px 6px 4px 0}
+.arb-vide{color:var(--mut);font-size:13px}
+.err{color:var(--err);font-size:13px;margin:10px 0}
+
+/* ---------- onglets Hommes / Dames ---------- */
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--bord);margin:0 0 14px}
+.tab{
+  font:inherit;font-size:14px;font-weight:600;cursor:pointer;
+  background:none;border:none;color:var(--mut);
+  padding:9px 18px;border-radius:10px 10px 0 0;margin-bottom:-2px;
+  border-bottom:2px solid transparent;
+}
+.tab:hover{color:var(--brand-2)}
+.tab.active{color:var(--brand-2);border-bottom-color:var(--accent)}
+
+/* ---------- état terminé / accusé ---------- */
+.done-icon{
+  width:46px;height:46px;border-radius:50%;background:var(--okbg);color:var(--ok);
+  display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:10px;
+}
+
+/* ---------- responsive ---------- */
+@media (max-width:560px){
+  .app-header .titles p{display:none}
+  th{font-size:11px}
+  .wrap{padding:16px 12px 32px}
+}

@@ -25,11 +25,11 @@ def _payload():
         },
         "qualifies": [
             {"nom": "JANER", "prenom": "Léo", "club": "C.E. de Châlons",
-             "section": "QUOTA FÉDÉRAL", "rang": 1, "equipe": None},
+             "section": "QUOTA FÉDÉRAL", "rang": 1, "equipe": None, "genre": "H"},
             {"nom": "WILLEM", "prenom": "Jules", "club": "C.E. de Châlons",
-             "section": "QUOTA FÉDÉRAL", "rang": 2, "equipe": None},
+             "section": "QUOTA FÉDÉRAL", "rang": 2, "equipe": None, "genre": "H"},
             {"nom": "HOPFNER", "prenom": "Anna", "club": "CE Romarimontain",
-             "section": "QUOTA LREGE", "rang": 3, "equipe": None},
+             "section": "QUOTA LREGE", "rang": 3, "equipe": None, "genre": "D"},
         ],
     }
 
@@ -119,6 +119,15 @@ def test_maj_rang_sur_reimport(client):
         "SELECT rang FROM qualifie WHERE nom='JANER'").fetchone()["rang"]
     conn.close()
     assert rang == 99
+
+
+def test_genre_persiste(client):
+    client.post(f"/api/import/{TOKEN}", json=_payload())
+    conn = get_connection(os.environ["PLATEFORME_DB"])
+    genres = {r["nom"]: r["genre"] for r in
+              conn.execute("SELECT nom, genre FROM qualifie").fetchall()}
+    conn.close()
+    assert genres == {"JANER": "H", "WILLEM": "H", "HOPFNER": "D"}
 
 
 def test_arme_normalisee_en_label(client):

@@ -19,6 +19,22 @@ TIREURS = [
 ARBITRES = [{"nom": "Roy", "prenom": "Max", "club": "Nancy", "niveau": "national"}]
 
 
+def test_date_fr_format():
+    # ISO -> français ; déjà français ou vide inchangés
+    assert mailer._date_fr("2026-06-05") == "05/06/2026"
+    assert mailer._date_fr("2026-06-05T14:30") == "05/06/2026"
+    assert mailer._date_fr("13/06/2026") == "13/06/2026"
+    assert mailer._date_fr(None) == ""
+
+
+def test_date_limite_fr_dans_mails():
+    _, corps = mailer.construire_rappel("CE X", "Compét Y", "2026-06-05", 3, "http://l")
+    assert "05/06/2026" in corps and "2026-06-05" not in corps
+    _, corps2 = mailer.construire_creation_selection(
+        {"nom": "X", "date_limite": "2026-06-05"}, {"clubs": 2, "qualifies_recus": 5})
+    assert "05/06/2026" in corps2 and "2026-06-05" not in corps2
+
+
 def test_message_detail_nominatif():
     sujet, corps = mailer.construire_message("CDF M15", "Escrime Nancy", TIREURS, ARBITRES)
     assert "Escrime Nancy" in sujet and "CDF M15" in sujet

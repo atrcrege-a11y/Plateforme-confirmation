@@ -34,8 +34,10 @@ def lire_confirmation(token):
         comp = _row(conn, "SELECT * FROM competition WHERE id = ?", (conf["competition_id"],))
         club = _row(conn, "SELECT * FROM club WHERE id = ?", (conf["club_id"],))
         qualifies = conn.execute(
-            "SELECT id, club_id, nom, prenom, section, equipe, rang "
-            "FROM qualifie WHERE competition_id = ? ORDER BY equipe, rang",
+            "SELECT q.id, q.club_id, q.nom, q.prenom, q.section, q.equipe, q.rang, q.rang_label, q.genre, "
+            "       c.nom AS club_nom "
+            "FROM qualifie q JOIN club c ON c.id = q.club_id "
+            "WHERE q.competition_id = ? ORDER BY q.id",
             (conf["competition_id"],),
         ).fetchall()
         partic = {
@@ -70,6 +72,7 @@ def lire_confirmation(token):
             "qualifies": [{
                 "id": q["id"], "nom": q["nom"], "prenom": q["prenom"],
                 "section": q["section"], "equipe": q["equipe"], "rang": q["rang"],
+                "rang_label": q["rang_label"], "genre": q["genre"], "club": q["club_nom"],
                 "mine": q["club_id"] == conf["club_id"],
                 "saisie": partic.get(q["id"]),
             } for q in qualifies],

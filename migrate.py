@@ -2,7 +2,7 @@
 import os
 from db import get_connection, DB_PATH, BASE_DIR
 
-SCHEMA_VERSION = 3  # incrémenter à chaque nouvelle migration
+SCHEMA_VERSION = 5  # incrémenter à chaque nouvelle migration
 
 MIGRATIONS = {
     2: [
@@ -16,6 +16,12 @@ MIGRATIONS = {
     3: [
         "ALTER TABLE confirmation ADD COLUMN corrige_par TEXT",
         "ALTER TABLE confirmation ADD COLUMN date_correction TEXT",
+    ],
+    4: [
+        "ALTER TABLE qualifie ADD COLUMN genre TEXT",
+    ],
+    5: [
+        "ALTER TABLE qualifie ADD COLUMN rang_label TEXT",
     ],
 }
 

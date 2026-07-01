@@ -87,6 +87,25 @@ def seed(conn):
         "INSERT INTO qualifie(competition_id,club_id,nom,prenom,section,equipe,rang)"
         " VALUES (?,?,?,?,?,?,?)", qm)
     cur.execute("INSERT INTO confirmation(id,competition_id,club_id,token) VALUES (5,4,1,'tok-m20-chalons')")
+
+    # --- M15 individuel HD : onglets Hommes/Dames + sections quota + genre par tireur ---
+    cur.execute(
+        "INSERT INTO competition(id,nom,categorie,format,arme,genre,date,lieu,date_limite,"
+        "arbitres_requis,type_arbitrage,source_arbitres) VALUES "
+        "(5,'Fête des jeunes — M15 individuel','M15','individuel','S','HD','2026-06-13','Paris','2026-06-05',"
+        "1,'standard','club')"
+    )
+    qhd = [
+        (5, 1, "MARTIN", "Léa", "QUOTA FÉDÉRAL", None, 1, "CL NAT 1", "D"),
+        (5, 1, "BERNARD", "Hugo", "QUOTA FÉDÉRAL", None, 2, "CL NAT 2", "H"),
+        (5, 2, "DUBOIS", "Inès", "QUOTA LREGE", None, 3, "CL GE 3", "D"),
+        (5, 2, "PETIT", "Tom", "QUOTA LREGE", None, 4, "CL GE 4", "H"),
+    ]
+    cur.executemany(
+        "INSERT INTO qualifie(competition_id,club_id,nom,prenom,section,equipe,rang,rang_label,genre)"
+        " VALUES (?,?,?,?,?,?,?,?,?)", qhd)
+    cur.execute("INSERT INTO confirmation(id,competition_id,club_id,token) VALUES (6,5,1,'tok-hd-chalons')")
+    cur.execute("INSERT INTO confirmation(id,competition_id,club_id,token) VALUES (7,5,2,'tok-hd-romari')")
     conn.commit()
 
 

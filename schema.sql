@@ -40,7 +40,9 @@ CREATE TABLE IF NOT EXISTS qualifie (
     prenom          TEXT NOT NULL,
     section         TEXT,                          -- 'qualifie' | 'remplacant' | 'N1'..'N3'
     equipe          TEXT,                          -- nom d'équipe si format=equipe, sinon NULL
-    rang            INTEGER
+    rang            INTEGER,
+    rang_label      TEXT,                          -- 'CL NAT 24' / 'CL GE 3' : rang affiché tel quel (préfixe conservé)
+    genre           TEXT                           -- 'H' | 'D' (onglets H/D page confirmation) ; NULL si non fourni
 );
 
 -- Acte de confirmation du club (1 par club × compétition) ----------

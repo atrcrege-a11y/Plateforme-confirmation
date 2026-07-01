@@ -1,77 +1,31 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dashboard secrétariat — LREGE</title>
-<style>
-  :root{--bg:#f4f4f2;--card:#fff;--bord:#e0ddd5;--bord2:#cfcabf;--txt:#1f2328;--mut:#5f6b76;--info:#185fa5;--infobg:#e6f1fb;--ok:#2f7d4f;--okbg:#e9f5ee;--warn:#9a6a12;--warnbg:#fbf0d9;--err:#b3261e}
-  *{box-sizing:border-box}
-  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--txt);background:var(--bg);margin:0;padding:24px 14px;line-height:1.5}
-  .wrap{max-width:920px;margin:0 auto}
-  .card{background:var(--card);border:1px solid var(--bord);border-radius:12px;padding:16px 20px;margin-bottom:16px}
-  h1{font-size:22px;font-weight:600;margin:0 0 4px}
-  h2{font-size:17px;font-weight:600;margin:0}
-  .mut{color:var(--mut);font-size:13px}
-  .badge{font-size:12px;padding:3px 10px;border-radius:8px;display:inline-block}
-  .ok{background:var(--okbg);color:var(--ok)}
-  .warn{background:var(--warnbg);color:var(--warn)}
-  .bar{height:8px;border-radius:6px;background:var(--bord);overflow:hidden;margin:8px 0}
-  .bar>i{display:block;height:100%;background:var(--ok)}
-  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
-  th,td{text-align:left;padding:6px 8px;border-top:1px solid var(--bord)}
-  th{color:var(--mut);font-weight:600;font-size:12px;border-top:none}
-  .stats{display:flex;gap:18px;flex-wrap:wrap;margin:6px 0 0;font-size:13px;color:var(--mut)}
-  .stats b{color:var(--txt)}
-  a.btn{font-size:13px;text-decoration:none;color:var(--info);border:1px solid var(--info);border-radius:8px;padding:5px 12px;display:inline-block}
-  a.btn:hover{background:var(--infobg)}
-  .head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
-  tr.clubrow{cursor:pointer}
-  tr.clubrow:hover td{background:var(--infobg)}
-  .caret{display:inline-block;width:12px;color:var(--mut);transition:transform .15s}
-  tr.clubrow.open .caret{transform:rotate(90deg)}
-  tr.detail{display:none}
-  tr.detail.open{display:table-row}
-  tr.detail>td{background:#faf9f6;padding:0 8px 10px 26px}
-  table.sub{margin:6px 0 2px;font-size:13px}
-  table.sub th,table.sub td{border-top:1px solid var(--bord);padding:4px 8px}
-  .badge.ko{background:#f6e4e3;color:var(--err)}
-  .userbar{font-size:13px;color:var(--mut);display:flex;align-items:center;gap:12px}
-  .userbar a{color:var(--info);text-decoration:none}
-  details.grp{border:1px solid var(--bord);border-radius:10px;background:#fff;margin-bottom:12px}
-  details.grp>summary{cursor:pointer;padding:9px 14px;list-style:none;display:flex;align-items:center;gap:10px;font-weight:600}
-  details.grp>summary::-webkit-details-marker{display:none}
-  details.grp>summary:before{content:"\25B8";color:var(--mut);font-weight:400;transition:transform .15s}
-  details.grp[open]>summary:before{transform:rotate(90deg)}
-  .gcount{font-size:12px;color:var(--mut);font-weight:400;margin-left:auto}
-  details.grp-cat>summary{font-size:16px}
-  details.grp-arme{border:none;border-top:1px solid var(--bord);border-radius:0;margin:0 0 0 14px}
-  details.grp-arme>summary{font-size:14px;color:var(--info)}
-  details.grp-type{border:none;border-radius:0;margin:0 0 0 16px}
-  details.grp-type>summary{font-size:13px;color:var(--mut)}
-  .grp-inner{padding:0 12px 6px}
-  .grp-inner .card{box-shadow:none}
-</style>
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Dashboard secrétariat — Escrime Grand Est{% endblock %}
+{% block header_title %}Dashboard secrétariat{% endblock %}
+{% block header_sub %}Suivi des confirmations — Ligue Grand Est d'escrime{% endblock %}
+
+{% block header_right %}
+<div class="userbar">
+  <span class="who">{{ user.nom }}{% if user.role == 'admin' %} (admin){% endif %}</span>
+  <a href="/logout">Déconnexion</a>
+  <button class="btn-ghost" onclick="charger()">Actualiser</button>
+</div>
+{% endblock %}
+
+{% block content %}
 <div class="wrap">
-  <div class="card head">
-    <div><h1>Dashboard secrétariat</h1><p class="mut">Suivi des confirmations — Ligue Grand Est d'escrime</p></div>
-    <div class="userbar">
-      <span>{{ user.nom }}{% if user.role == 'admin' %} (admin){% endif %}</span>
-      <a href="/logout">Déconnexion</a>
-      <button onclick="charger()" style="font:inherit;padding:8px 14px;border:1px solid var(--bord2);border-radius:8px;background:#fff;cursor:pointer">Actualiser</button>
-    </div>
-  </div>
   <div id="loading" class="card mut">Chargement…</div>
   <div id="list"></div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
   function esc(s){ return (s==null?"":String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+  // Date ISO -> français JJ/MM/AAAA (+ HH:MM si présent) ; inchangé sinon
+  function dateFR(s){ const m=/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}:\d{2}))?/.exec(s||""); return m ? `${m[3]}/${m[2]}/${m[1]}${m[4]?" "+m[4]:""}` : (s||""); }
 
   const ROSTERS = {}, CATS = {};
-  const BTN = "font:inherit;padding:5px 12px;border:1px solid var(--info);border-radius:8px;background:#fff;color:var(--info);cursor:pointer";
+  const BTN = "font:inherit;font-size:13px;padding:6px 13px;border:1px solid var(--info);border-radius:9px;background:#fff;color:var(--info);cursor:pointer";
   function champFor(cat){
     const c = (cat||'').toUpperCase();
     if(c.startsWith('M15')) return {key:'taille_veste', label:'Veste', options:['T8','T10','T12','T14','S','M','L','XL']};
@@ -208,16 +162,16 @@
         <td><span class="badge ${conf?'ok':'warn'}">${conf?'Confirmé':'En attente'}</span></td>
         <td>${k.presents}/${k.attendus_total||0}</td>
         <td>${k.arbitres}</td>
-        <td>${k.date_confirmation ? esc(k.date_confirmation.replace('T',' ')) : '—'}</td>
+        <td>${k.date_confirmation ? esc(dateFR(k.date_confirmation)) : '—'}</td>
         <td class="mut">${esc(k.confirme_par_email||'')}</td>
       </tr>
-      <tr class="detail"><td colspan="6" id="det-${k.confirmation_id}">${sub}<div style="margin-top:8px"><button onclick="ouvrirCorrection(${k.confirmation_id})" style="${BTN}">✎ Modifier</button>${k.corrige_par ? `<span class="mut" style="margin-left:10px">✎ corrigé par ${esc(k.corrige_par)}${k.date_correction ? ' le '+esc(k.date_correction.replace('T',' ')) : ''}</span>` : ''}</div></td></tr>`;
+      <tr class="detail"><td colspan="6" id="det-${k.confirmation_id}">${sub}<div style="margin-top:8px"><button onclick="ouvrirCorrection(${k.confirmation_id})" style="${BTN}">✎ Modifier</button>${k.corrige_par ? `<span class="mut" style="margin-left:10px">✎ corrigé par ${esc(k.corrige_par)}${k.date_correction ? ' le '+esc(dateFR(k.date_correction)) : ''}</span>` : ''}</div></td></tr>`;
     }).join("");
     div.innerHTML = `
       <div class="head">
         <div>
           <h2>${esc(c.nom)}</h2>
-          <p class="mut">genre ${esc(c.genre||'—')} · ${esc(c.date||'')} ${c.lieu?'· '+esc(c.lieu):''}${c.date_limite?' — limite '+esc(c.date_limite):''}</p>
+          <p class="mut">genre ${esc(c.genre||'—')} · ${esc(dateFR(c.date))} ${c.lieu?'· '+esc(c.lieu):''}${c.date_limite?' — limite '+esc(dateFR(c.date_limite)):''}</p>
         </div>
         <span class="badge ${complet?'ok':'warn'}">${c.clubs_confirmes}/${c.clubs_total} clubs</span>
       </div>
@@ -238,5 +192,4 @@
 
   charger();
 </script>
-</body>
-</html>
+{% endblock %}

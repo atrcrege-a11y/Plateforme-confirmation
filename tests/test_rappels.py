@@ -61,4 +61,4 @@ def test_message_rappel_contenu():
     sujet, corps = mailer.construire_rappel(
         "Nancy", "CDF M15", "2026-04-24", 7, "https://x/c/tok")
     assert "CDF M15" in sujet
-    assert "2026-04-24" in corps and "J-7" in corps and "https://x/c/tok" in corps
+    assert "24/04/2026" in corps and "J-7" in corps and "https://x/c/tok" in corps  # date au format français

@@ -144,6 +144,23 @@ def test_m20_equipe_simple(client):
     assert r.status_code == 201
 
 
+def test_hd_genre_et_vrai_club(client):
+    # M15 individuel HD : genre porté par tireur + nom de club exposé + cloisonnement
+    data = client.get("/api/c/tok-hd-chalons").get_json()
+    assert data["competition"]["genre"] == "HD"
+    genres = {q["genre"] for q in data["qualifies"]}
+    assert genres == {"H", "D"}                      # onglets H/D possibles
+    # vrai club exposé pour chaque tireur (plus de mention générique)
+    assert all(q.get("club") for q in data["qualifies"])
+    autres = [q for q in data["qualifies"] if not q["mine"]]
+    assert {q["club"] for q in autres} == {"CE. Romarimontain"}
+    mine = {q["nom"] for q in data["qualifies"] if q["mine"]}
+    assert mine == {"MARTIN", "BERNARD"}             # seulement les tireurs de Châlons
+    # rang affiché avec préfixe conservé (CL NAT / CL GE)
+    labels = {q["nom"]: q["rang_label"] for q in data["qualifies"]}
+    assert labels["MARTIN"] == "CL NAT 1" and labels["DUBOIS"] == "CL GE 3"
+
+
 def test_accuse_club_envoye_au_club(client):
     data = client.get("/api/c/tok-chalons").get_json()
     mine = [q["id"] for q in data["qualifies"] if q["mine"]]
